@@ -1,0 +1,32 @@
+name: sos_aid_mobile
+description: S.O.S Aid - ung dung ho tro so cap ngoai vien danh cho nguoi dan
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.19.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Gọi REST API của backend.
+  http: ^1.2.2
+
+  # Lưu token và nội dung hướng dẫn đã duyệt để dùng khi mất mạng (SOS-051).
+  shared_preferences: ^2.3.3
+
+  # Lấy toạ độ GPS kèm độ chính xác — bắt buộc cho FR-001/FR-003.
+  geolocator: ^13.0.2
+
+  # Sinh Idempotency-Key phía client (FR-002).
+  uuid: ^4.5.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

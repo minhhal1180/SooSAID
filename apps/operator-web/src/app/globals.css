@@ -1,0 +1,183 @@
+/*
+ * Bảng màu console trực ban.
+ *
+ * Nguyên tắc thiết kế cho màn hình cấp cứu: nền tối để mắt đỡ mỏi trong ca đêm,
+ * và MÀU ĐỎ CHỈ DÙNG cho ca chưa có người nhận. Nếu mọi thứ đều đỏ thì không gì
+ * nổi bật, người trực sẽ bỏ sót ca thật.
+ */
+
+:root {
+  --bg: #0f1419;
+  --bg-panel: #161d26;
+  --bg-elevated: #1e2733;
+  --border: #2a3644;
+  --text: #e6edf3;
+  --text-muted: #8b98a5;
+
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+
+  --urgent: #ef4444;
+  --warning: #f59e0b;
+  --ok: #10b981;
+  --neutral: #64748b;
+
+  --radius: 8px;
+  --gap: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  transition: background 120ms ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--border);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+button.danger {
+  background: transparent;
+  border-color: var(--urgent);
+  color: var(--urgent);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  width: 100%;
+}
+
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--gap);
+}
+
+.panel h2 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.mono {
+  font-family: 'Cascadia Mono', Consolas, 'Courier New', monospace;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.badge-queued {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--urgent);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.badge-active {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.badge-done {
+  background: rgba(100, 116, 139, 0.15);
+  color: var(--neutral);
+  border: 1px solid rgba(100, 116, 139, 0.4);
+}
+
+.badge-warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.error-box {
+  border: 1px solid var(--urgent);
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--urgent);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+/*
+ * Băng cảnh báo môi trường. Luôn hiển thị khi hệ thống chạy ở chế độ mô phỏng
+ * hoặc dữ liệu không bền vững — người trực phải BIẾT mình đang ở diễn tập,
+ * không được để họ tưởng đây là ca thật.
+ */
+.env-banner {
+  background: var(--warning);
+  color: #1a1206;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 6px 16px;
+  text-align: center;
+}

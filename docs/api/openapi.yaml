@@ -1,0 +1,1214 @@
+openapi: 3.0.3
+info:
+  title: S.O.S Aid API
+  version: 1.1.0
+  description: >-
+    Contract có hiệu lực của repo (Rule 6.1 – API First).
+
+    Khác biệt so với bản tham chiếu trong Developer Kit
+    (`docs/reference/openapi.kit-original.yaml`):
+      * Mọi response bọc trong envelope `{success, data, requestId}` hoặc
+        `{success, error, requestId}` theo Rule 6.2 / ADR-003.
+      * `EmergencyCase` bổ sung `phase` – 6 pha hiển thị dẫn xuất từ `status`
+        (ADR-001) – và `realtimeChannel`.
+      * Bổ sung các endpoint đã triển khai: timeline, lịch sử vị trí, danh mục
+        hướng dẫn, ứng viên điều phối, nhiệm vụ của kíp xe, audit, health.
+
+    ĐÂY KHÔNG PHẢI API CHÍNH THỨC CỦA 115. Hệ thống chạy ở chế độ mô phỏng
+    (`EMS_INTEGRATION_MODE=mock`) cho tới khi có thoả thuận/SLA chính thức.
+
+servers:
+  - url: http://localhost:3000/v1
+    description: Local development
+  - url: https://api.example.com/v1
+    description: Placeholder – chưa có môi trường production
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+  - name: Profile
+  - name: EmergencyCase
+  - name: Location
+  - name: Triage
+  - name: Video
+  - name: Guidance
+  - name: Operator
+  - name: Dispatch
+  - name: Handover
+  - name: Directory
+  - name: Reporting
+  - name: Audit
+  - name: System
+
+paths:
+  # ==========================================================================
+  # Auth
+  # ==========================================================================
+  /auth/otp/request:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Yêu cầu mã OTP đăng nhập cho người dân
+      description: >-
+        Luôn trả 202 bất kể số điện thoại có tồn tại hay không, để endpoint này
+        không trở thành công cụ dò tài khoản đã đăng ký.
+        Có rate limit theo `RATE_LIMIT_OTP_PER_HOUR` (TC-026).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone: { type: string, example: '+84901234567' }
+      responses:
+        '202':
+          description: Đã tiếp nhận yêu cầu gửi OTP
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          accepted: { type: boolean }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/otp/verify:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Xác thực OTP và cấp cặp token
+      description: >-
+        Tài khoản có vai trò nghiệp vụ (OPERATOR_115, CLINICIAN, AMBULANCE_CREW,
+        FACILITY_USER, ADMIN, AUDITOR) BỊ TỪ CHỐI ở luồng này (SOS-004) và phải
+        dùng cổng OIDC/MFA riêng.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, otp]
+              properties:
+                phone: { type: string }
+                otp: { type: string, minLength: 6, maxLength: 6 }
+      responses:
+        '200':
+          description: Đăng nhập thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/LoginResult' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Đổi refresh token lấy cặp token mới (có rotation)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: Cấp token mới; token cũ bị thu hồi ngay
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/LoginResult' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /auth/dev/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: '[CHỈ DEV] Đăng nhập tài khoản nghiệp vụ mô phỏng'
+      description: >-
+        Lối vào tạm cho dashboard trong môi trường phát triển/diễn tập, khi cổng
+        OIDC/MFA của SOS-004 chưa được dựng. Trả 403 khi
+        `AUTH_DEV_OPERATOR_LOGIN=false`, và backend TỪ CHỐI KHỞI ĐỘNG nếu cờ này
+        bật cùng `NODE_ENV=production`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [OPERATOR_115, CLINICIAN, AMBULANCE_CREW, LOCAL_RESPONDER, ADMIN]
+      responses:
+        '200':
+          description: Đăng nhập diễn tập thành công
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/LoginResult' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ==========================================================================
+  # Profile
+  # ==========================================================================
+  /me:
+    get:
+      tags: [Profile]
+      summary: Hồ sơ người dùng hiện tại
+      description: '`phoneMasked` chỉ giữ 3 số cuối, kể cả với chính chủ (Rule 11).'
+      responses:
+        '200':
+          description: Hồ sơ
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/UserProfile' }
+    patch:
+      tags: [Profile]
+      summary: Cập nhật hồ sơ người dùng hiện tại
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName: { type: string, maxLength: 255 }
+                locale: { type: string, example: vi-VN }
+      responses:
+        '200':
+          description: Đã cập nhật
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/UserProfile' }
+
+  /me/emergency-profile:
+    get:
+      tags: [Profile]
+      summary: Hồ sơ sức khỏe khẩn cấp của chính mình
+      description: Mọi lần đọc đều ghi audit (TC-024).
+      responses:
+        '200':
+          description: Hồ sơ sức khỏe, hoặc `null` nếu chưa khai báo
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        oneOf:
+                          - $ref: '#/components/schemas/EmergencyProfile'
+                          - type: 'null'
+    put:
+      tags: [Profile]
+      summary: Thay thế toàn bộ hồ sơ sức khỏe khẩn cấp
+      description: >-
+        Dùng PUT chứ không PATCH để tránh trạng thái nửa vời. Mỗi lần ghi tăng
+        `version`; ca cũ vẫn tham chiếu đúng phiên bản đã dùng (FR-011).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmergencyProfileInput' }
+      responses:
+        '200':
+          description: Đã cập nhật
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/EmergencyProfile' }
+
+  /me/emergency-contacts:
+    get:
+      tags: [Profile]
+      summary: Danh sách người liên hệ khẩn cấp
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+    post:
+      tags: [Profile]
+      summary: Thêm người liên hệ khẩn cấp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, phone]
+              properties:
+                name: { type: string, maxLength: 255 }
+                phone: { type: string }
+                relation: { type: string, maxLength: 64 }
+                priority: { type: integer, minimum: 1, maximum: 10, default: 1 }
+                notifyByPush: { type: boolean, default: true }
+                notifyBySms: { type: boolean, default: true }
+      responses:
+        '201': { $ref: '#/components/responses/GenericSuccess' }
+
+  /me/emergency-contacts/{contactId}:
+    delete:
+      tags: [Profile]
+      summary: Xoá người liên hệ khẩn cấp
+      parameters:
+        - in: path
+          name: contactId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Đã xoá }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /me/devices:
+    post:
+      tags: [Profile]
+      summary: Đăng ký thiết bị (push token, phiên bản app)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deviceId, platform]
+              properties:
+                deviceId: { type: string, format: uuid }
+                platform: { type: string, enum: [ios, android, web] }
+                pushToken: { type: string }
+                appVersion: { type: string }
+      responses:
+        '201': { $ref: '#/components/responses/GenericSuccess' }
+
+  # ==========================================================================
+  # Emergency case
+  # ==========================================================================
+  /emergency-cases:
+    post:
+      tags: [EmergencyCase]
+      summary: Tạo ca cấp cứu (bước 1 của Rule 7.2)
+      description: >-
+        `Idempotency-Key` là BẮT BUỘC. Retry cùng key trả lại đúng ca đã tạo;
+        cùng key với nội dung khác trả 409 `IDEMPOTENCY_CONFLICT` (TC-002).
+        Server tự chuyển CREATED → QUEUED ngay sau khi persist, nên response
+        luôn có `status: QUEUED`.
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: { type: string, minLength: 16, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateEmergencyCaseRequest' }
+      responses:
+        '201':
+          description: Đã tạo ca
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/EmergencyCase' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /emergency-cases/mine:
+    get:
+      tags: [EmergencyCase]
+      summary: Lịch sử ca của chính người dùng (M10)
+      responses:
+        '200':
+          description: Danh sách ca
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/EmergencyCase' }
+
+  /emergency-cases/{caseId}:
+    get:
+      tags: [EmergencyCase]
+      summary: Ảnh chụp trạng thái ca
+      description: >-
+        Người không được phép xem toạ độ chính xác vẫn nhận được ca nhưng
+        `latestLocation` là `null` (field-level authorization).
+        Người ngoài scope nhận 404 chứ không phải 403, để không xác nhận sự tồn
+        tại của ca (TC-025).
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      responses:
+        '200':
+          description: Chi tiết ca
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/EmergencyCase' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /emergency-cases/{caseId}/timeline:
+    get:
+      tags: [EmergencyCase]
+      summary: Dòng thời gian trạng thái và ghi chú của ca
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /emergency-cases/{caseId}/status:
+    post:
+      tags: [EmergencyCase]
+      summary: Chuyển trạng thái ca
+      description: >-
+        Server kiểm tra transition theo ma trận `CASE_TRANSITIONS` và vai trò
+        người gọi (FR-012). Transition không có trong ma trận trả 409
+        `CASE_INVALID_TRANSITION`; đúng cạnh nhưng sai vai trò trả 403.
+        `CANCELLED` và `FALSE_ALARM` bắt buộc có `reason` (TC-029).
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [toStatus]
+              properties:
+                toStatus: { $ref: '#/components/schemas/CaseStatus' }
+                reason: { type: string, minLength: 3, maxLength: 1000 }
+      responses:
+        '200':
+          description: Đã chuyển trạng thái
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/EmergencyCase' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /emergency-cases/{caseId}/notes:
+    post:
+      tags: [EmergencyCase]
+      summary: Thêm ghi chú chuyên môn/vận hành
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string, maxLength: 4000 }
+                noteType:
+                  type: string
+                  enum: [general, clinical_observation, access_instruction]
+      responses:
+        '201': { $ref: '#/components/responses/GenericSuccess' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ==========================================================================
+  # Location
+  # ==========================================================================
+  /emergency-cases/{caseId}/location:
+    post:
+      tags: [Location]
+      summary: Gửi thêm một mẫu vị trí
+      description: >-
+        Append-only: mọi mẫu đều được giữ lại kèm `accuracyMeters` và
+        `capturedAt` (FR-003). Ca đã kết thúc trả 409.
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LocationSample' }
+      responses:
+        '202': { $ref: '#/components/responses/GenericSuccess' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /emergency-cases/{caseId}/location/history:
+    get:
+      tags: [Location]
+      summary: Lịch sử vị trí kèm cờ chất lượng tín hiệu
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ==========================================================================
+  # Triage
+  # ==========================================================================
+  /triage/questionnaire:
+    get:
+      tags: [Triage]
+      summary: Bộ câu hỏi quan sát đang hiệu lực
+      description: >-
+        Client tải bộ câu hỏi từ server thay vì hard-code, để nội dung đã được
+        duyệt lại vẫn hiển thị đúng trên app cũ (SOS-013, TC-035).
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+
+  /emergency-cases/{caseId}/triage:
+    post:
+      tags: [Triage]
+      summary: Gửi phiếu ghi nhận dấu hiệu quan sát được
+      description: >-
+        CHỈ lưu quan sát. Hệ thống KHÔNG chẩn đoán, KHÔNG chấm điểm mức độ,
+        KHÔNG gợi ý xử trí (Rule 1.2). Không bắt buộc trả lời đủ mọi câu.
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [questionnaireVersion, answers]
+              properties:
+                questionnaireVersion: { type: string, example: pilot-1 }
+                answers:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items:
+                    type: object
+                    required: [questionCode, value]
+                    properties:
+                      questionCode: { type: string, example: responsive }
+                      value: { type: string, enum: [yes, no, unknown] }
+      responses:
+        '202': { $ref: '#/components/responses/GenericSuccess' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Triage]
+      summary: Lịch sử phiếu quan sát của ca
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+
+  # ==========================================================================
+  # Video
+  # ==========================================================================
+  /emergency-cases/{caseId}/video/session:
+    post:
+      tags: [Video]
+      summary: Tham gia phòng video của ca
+      description: >-
+        Vai trò trong phòng do SERVER quyết định từ vai trò thật của người gọi;
+        trường `role` trong body chỉ để client tự kiểm tra kỳ vọng.
+        Provider lỗi trả 503 `PROVIDER_UNAVAILABLE` và **trạng thái ca giữ
+        nguyên** để client bật phương án thoại (FR-007, TC-009).
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role: { type: string, enum: [caller, operator, clinician] }
+      responses:
+        '200':
+          description: Thông tin tham gia phòng
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/VideoJoinInfo' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503': { $ref: '#/components/responses/ProviderUnavailable' }
+    delete:
+      tags: [Video]
+      summary: Kết thúc phiên video của ca
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      responses:
+        '204': { description: Đã kết thúc }
+
+  # ==========================================================================
+  # Guidance
+  # ==========================================================================
+  /first-aid-guides:
+    get:
+      tags: [Guidance]
+      summary: Danh mục hướng dẫn sơ cấp cứu
+      description: >-
+        Mỗi mục có cờ `drillOnly` = nội dung CHƯA được chuyên gia y tế phê
+        duyệt; client bắt buộc hiển thị cảnh báo tương ứng. Nội dung DRAFT chỉ
+        xuất hiện khi `GUIDANCE_ALLOW_DRILL_CONTENT=true`.
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+
+  /emergency-cases/{caseId}/guidance:
+    post:
+      tags: [Guidance]
+      summary: Gửi một hướng dẫn tới ca đang xử lý
+      description: >-
+        Nhân viên y tế CHỌN nội dung; hệ thống không tự chọn theo triệu chứng
+        (Rule 1.2). Nội dung chưa duyệt trả 409 `GUIDANCE_NOT_APPROVED`.
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [guidanceId]
+              properties:
+                guidanceId: { type: string, format: uuid }
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      tags: [Guidance]
+      summary: Nhật ký hướng dẫn đã gửi/đã thực hiện của ca
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+
+  /emergency-cases/{caseId}/guidance/acknowledge:
+    post:
+      tags: [Guidance]
+      summary: Người tại hiện trường xác nhận đã thực hiện/bỏ qua
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [guidanceId, action]
+              properties:
+                guidanceId: { type: string, format: uuid }
+                action: { type: string, enum: [displayed, acknowledged, skipped] }
+      responses:
+        '202': { $ref: '#/components/responses/GenericSuccess' }
+
+  # ==========================================================================
+  # Operator
+  # ==========================================================================
+  /operator/queue:
+    get:
+      tags: [Operator]
+      summary: Hàng đợi ca đang hoạt động trong phạm vi người trực
+      description: >-
+        Tham số `serviceAreaId` chỉ THU HẸP trong phạm vi vốn có của người trực,
+        không dùng để xem vùng khác.
+      parameters:
+        - in: query
+          name: status
+          schema: { $ref: '#/components/schemas/CaseStatus' }
+        - in: query
+          name: serviceAreaId
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Danh sách ca
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/EmergencyCase' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /operator/cases/{caseId}/accept:
+    post:
+      tags: [Operator]
+      summary: Tiếp nhận ca (atomic)
+      description: >-
+        Hai người bấm cùng lúc thì đúng một người thắng; người còn lại nhận 409
+        `CASE_ALREADY_ACCEPTED` (TC-007).
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      responses:
+        '200':
+          description: Đã tiếp nhận
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/EmergencyCase' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # ==========================================================================
+  # Dispatch
+  # ==========================================================================
+  /emergency-cases/{caseId}/dispatch:
+    post:
+      tags: [Dispatch]
+      summary: Tạo phân công điều phối
+      description: >-
+        Người hỗ trợ chưa xác thực hoặc không sẵn sàng trả 404 – với người điều
+        phối, họ đơn giản là không tồn tại (TC-013).
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetType, targetId]
+              properties:
+                targetType: { type: string, enum: [ambulance_unit, local_responder] }
+                targetId: { type: string, format: uuid }
+                priority: { type: string, enum: [normal, urgent], default: normal }
+      responses:
+        '201': { $ref: '#/components/responses/GenericSuccess' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    get:
+      tags: [Dispatch]
+      summary: Danh sách phân công của ca
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+
+  /emergency-cases/{caseId}/dispatch/candidates:
+    get:
+      tags: [Dispatch]
+      summary: Lực lượng khả dụng cho ca
+      description: >-
+        TDD §11.2 – "gần nhất" không mặc định là "phù hợp nhất"; kết quả kèm
+        khoảng cách và trạng thái để người điều phối tự quyết định.
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+
+  /assignments/mine:
+    get:
+      tags: [Dispatch]
+      summary: Nhiệm vụ đang mở của kíp xe/người hỗ trợ (Crew PWA – SOS-025)
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+
+  /assignments/{assignmentId}/status:
+    post:
+      tags: [Dispatch]
+      summary: Cập nhật tiến độ nhiệm vụ
+      description: >-
+        Vòng đời tuyến tính PENDING → ACCEPTED → EN_ROUTE → ARRIVED → COMPLETED.
+        Các mốc EN_ROUTE/ARRIVED kéo theo trạng thái ca tương ứng nếu cạnh hợp lệ.
+        Quyền kiểm tra theo "nhiệm vụ này có phải của bạn không", không chỉ theo
+        vai trò (TC-012).
+      parameters:
+        - in: path
+          name: assignmentId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [ACCEPTED, REJECTED, EN_ROUTE, ARRIVED, COMPLETED]
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # ==========================================================================
+  # Handover
+  # ==========================================================================
+  /emergency-cases/{caseId}/handover:
+    get:
+      tags: [Handover]
+      summary: Danh sách phiên bản hồ sơ bàn giao
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+    post:
+      tags: [Handover]
+      summary: Chốt hồ sơ bàn giao (tạo phiên bản bất biến)
+      description: >-
+        Mỗi lần chốt tạo một version MỚI; version cũ không bao giờ bị sửa
+        (TC-018, TC-019). Bất biến được cưỡng chế bằng trigger ở tầng DB.
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                receivingFacilityId: { type: string, format: uuid }
+                ambulanceUnitId: { type: string, format: uuid }
+      responses:
+        '201':
+          description: Đã chốt hồ sơ
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          handoverId: { type: string, format: uuid }
+                          version: { type: integer }
+                          status: { type: string, example: FINALIZED }
+                          finalizedAt: { type: string, format: date-time }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /emergency-cases/{caseId}/handover/preview:
+    get:
+      tags: [Handover]
+      summary: Xem trước nội dung sẽ được đóng băng (không tạo version)
+      parameters: [{ $ref: '#/components/parameters/CaseId' }]
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+
+  /emergency-cases/{caseId}/handover/{version}:
+    get:
+      tags: [Handover]
+      summary: Đọc một phiên bản hồ sơ bàn giao đã chốt
+      parameters:
+        - { $ref: '#/components/parameters/CaseId' }
+        - in: path
+          name: version
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ==========================================================================
+  # Directory
+  # ==========================================================================
+  /facilities/nearby:
+    get:
+      tags: [Directory]
+      summary: Cơ sở y tế gần một toạ độ
+      description: >-
+        `spatialAccuracy` = `exact` khi truy vấn bằng PostGIS, `approximate` khi
+        chạy driver `memory` (ADR-004). Client phải hiển thị khác biệt này.
+      parameters:
+        - { in: query, name: lat, required: true, schema: { type: number, format: double } }
+        - { in: query, name: lng, required: true, schema: { type: number, format: double } }
+        - { in: query, name: radiusMeters, schema: { type: integer, default: 10000, maximum: 50000 } }
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+
+  /resources/nearby:
+    get:
+      tags: [Directory]
+      summary: Điểm hỗ trợ tại chỗ (phòng y tế, AED, lối xe vào)
+      parameters:
+        - { in: query, name: lat, required: true, schema: { type: number, format: double } }
+        - { in: query, name: lng, required: true, schema: { type: number, format: double } }
+        - { in: query, name: radiusMeters, schema: { type: integer, default: 10000 } }
+        - { in: query, name: resourceType, schema: { type: string, example: AED } }
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+
+  # ==========================================================================
+  # Reporting & audit
+  # ==========================================================================
+  /reports/summary:
+    get:
+      tags: [Reporting]
+      summary: Chỉ số pilot theo khoảng thời gian
+      description: >-
+        Dùng TRUNG VỊ chứ không phải trung bình, để một ca kéo dài bất thường
+        không che mất hiệu năng thực tế. Ca diễn tập bị loại khỏi KPI trừ khi
+        `includeDrills=true` (TDD §8.2 W07).
+      parameters:
+        - { in: query, name: from, required: true, schema: { type: string, format: date-time } }
+        - { in: query, name: to, required: true, schema: { type: string, format: date-time } }
+        - { in: query, name: includeDrills, schema: { type: boolean, default: false } }
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /audit-logs:
+    get:
+      tags: [Audit]
+      summary: Tra cứu audit trail (chỉ ADMIN/AUDITOR)
+      description: >-
+        Bản thân việc tra cứu cũng được audit. Export hàng loạt CHƯA mở: threat
+        model yêu cầu quy trình phê duyệt, đó là Open Decision chưa chốt.
+      parameters:
+        - { in: query, name: caseId, schema: { type: string, format: uuid } }
+        - { in: query, name: actorUserId, schema: { type: string, format: uuid } }
+        - { in: query, name: action, schema: { type: string } }
+        - { in: query, name: from, schema: { type: string, format: date-time } }
+        - { in: query, name: to, schema: { type: string, format: date-time } }
+        - { in: query, name: limit, schema: { type: integer, default: 50, maximum: 200 } }
+        - { in: query, name: offset, schema: { type: integer, default: 0 } }
+      responses:
+        '200': { $ref: '#/components/responses/GenericSuccess' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /health:
+    get:
+      tags: [System]
+      security: []
+      summary: Health check và trạng thái degraded
+      description: >-
+        Công khai để load balancer gọi được, nhưng cố ý không lộ chi tiết hạ
+        tầng. `degraded.persistence=true` nghĩa là đang chạy driver `memory` và
+        dữ liệu KHÔNG bền vững.
+      responses:
+        '200':
+          description: Trạng thái hệ thống
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccess'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/HealthStatus' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    CaseId:
+      in: path
+      name: caseId
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    GenericSuccess:
+      description: Thành công
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiSuccess' }
+    ValidationFailed:
+      description: Dữ liệu không hợp lệ
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Unauthenticated:
+      description: Chưa xác thực hoặc token không hợp lệ
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Forbidden:
+      description: Không đủ quyền
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: Không tồn tại hoặc ngoài phạm vi truy cập
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Conflict:
+      description: Xung đột trạng thái/đồng thời
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    RateLimited:
+      description: Vượt ngưỡng tần suất
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    ProviderUnavailable:
+      description: Nhà cung cấp bên ngoài không khả dụng – client dùng phương án dự phòng
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+
+  schemas:
+    # --- Envelope (Rule 6.2 / ADR-003) -------------------------------------
+    ApiSuccess:
+      type: object
+      required: [success, data, requestId]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: {}
+        requestId: { type: string }
+
+    ApiError:
+      type: object
+      required: [success, error, requestId]
+      properties:
+        success: { type: boolean, enum: [false] }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { $ref: '#/components/schemas/ApiErrorCode' }
+            message: { type: string, description: 'Thông điệp an toàn để hiển thị; không chứa stack trace' }
+            details: { type: array, items: {} }
+        requestId: { type: string }
+
+    ApiErrorCode:
+      type: string
+      enum:
+        - VALIDATION_FAILED
+        - UNAUTHENTICATED
+        - FORBIDDEN
+        - NOT_FOUND
+        - CONFLICT
+        - CASE_INVALID_TRANSITION
+        - CASE_ALREADY_ACCEPTED
+        - IDEMPOTENCY_CONFLICT
+        - GUIDANCE_NOT_APPROVED
+        - CONSENT_REQUIRED
+        - RATE_LIMITED
+        - PROVIDER_UNAVAILABLE
+        - INTERNAL_ERROR
+
+    # --- Domain ------------------------------------------------------------
+    CaseStatus:
+      type: string
+      description: Trạng thái kỹ thuật canonical (ADR-001) – khớp enum `case_status` của PostgreSQL
+      enum:
+        - CREATED
+        - QUEUED
+        - ACCEPTED
+        - VIDEO_CONNECTED
+        - DISPATCHED
+        - EN_ROUTE
+        - ON_SCENE
+        - HANDOVER_PENDING
+        - HANDED_OVER
+        - CLOSED
+        - CANCELLED
+        - FALSE_ALARM
+
+    CasePhase:
+      type: string
+      description: >-
+        6 pha hiển thị cho người dân, DẪN XUẤT từ `status` và không lưu DB
+        (ADR-001). Mọi logic nghiệp vụ phải dựa trên `status`, không dựa trên pha.
+      enum: [CREATED, ALERTED, CONNECTING, VIDEO_SUPPORT, HANDOVER, COMPLETED]
+
+    LocationSample:
+      type: object
+      required: [lat, lng, capturedAt]
+      properties:
+        lat: { type: number, format: double, minimum: -90, maximum: 90 }
+        lng: { type: number, format: double, minimum: -180, maximum: 180 }
+        accuracyMeters: { type: number, format: double, nullable: true }
+        altitudeMeters: { type: number, format: double, nullable: true }
+        capturedAt:
+          type: string
+          format: date-time
+          description: Thời điểm THIẾT BỊ đo được, khác thời điểm server nhận
+        addressText: { type: string, nullable: true, maxLength: 500 }
+        accessNote:
+          type: string
+          nullable: true
+          maxLength: 1000
+          description: Chỉ dẫn tiếp cận – cổng nào, tầng mấy, gọi ai mở barrier
+
+    EmergencyCase:
+      type: object
+      required: [id, code, status, phase, createdAt, realtimeChannel]
+      properties:
+        id: { type: string, format: uuid }
+        code:
+          type: string
+          pattern: '^SOS-\d{8}-\d{6}$'
+          example: SOS-20260913-000123
+          description: Mã đọc được bằng lời; không chứa thông tin nhận dạng
+        status: { $ref: '#/components/schemas/CaseStatus' }
+        phase: { $ref: '#/components/schemas/CasePhase' }
+        triggerSource: { type: string, enum: [sos_button, drill, operator_created] }
+        numberOfPatients: { type: integer, minimum: 1 }
+        serviceAreaId: { type: string, format: uuid, nullable: true }
+        callerUserId: { type: string, format: uuid, nullable: true }
+        activeOperatorId: { type: string, format: uuid, nullable: true }
+        latestLocation:
+          allOf: [{ $ref: '#/components/schemas/LocationSample' }]
+          nullable: true
+          description: '`null` khi người gọi không có quyền xem toạ độ chính xác'
+        addressText: { type: string, nullable: true }
+        accessNote: { type: string, nullable: true }
+        mediaConsent: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        acceptedAt: { type: string, format: date-time, nullable: true }
+        closedAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time }
+        realtimeChannel: { type: string, example: 'case:1f2e...' }
+
+    CreateEmergencyCaseRequest:
+      type: object
+      required: [deviceId, location]
+      properties:
+        deviceId: { type: string, format: uuid }
+        location: { $ref: '#/components/schemas/LocationSample' }
+        triggerSource:
+          type: string
+          enum: [sos_button, drill, operator_created]
+          default: sos_button
+        numberOfPatients: { type: integer, minimum: 1, maximum: 100, default: 1 }
+        accessNote: { type: string, maxLength: 1000 }
+        mediaConsent:
+          type: boolean
+          default: false
+          description: >-
+            Đồng ý ghi hình. Ghi hình chỉ bật khi cờ này VÀ `RECORDING_ENABLED`
+            cùng đúng (TC-016, TC-017).
+
+    LoginResult:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresInSeconds: { type: integer }
+        user:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            fullName: { type: string, nullable: true }
+            roles:
+              type: array
+              items:
+                type: string
+                enum: [CITIZEN, OPERATOR_115, CLINICIAN, AMBULANCE_CREW, FACILITY_USER, LOCAL_RESPONDER, ADMIN, AUDITOR]
+
+    UserProfile:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        phoneMasked: { type: string, nullable: true, example: '***567' }
+        email: { type: string, nullable: true }
+        fullName: { type: string, nullable: true }
+        locale: { type: string }
+        status: { type: string }
+        roles: { type: array, items: { type: string } }
+
+    EmergencyProfileInput:
+      type: object
+      properties:
+        bloodType: { type: string, nullable: true, maxLength: 8 }
+        allergies: { type: array, maxItems: 20, items: { type: string, maxLength: 120 } }
+        chronicConditions: { type: array, maxItems: 20, items: { type: string, maxLength: 120 } }
+        medications: { type: array, maxItems: 20, items: { type: string, maxLength: 120 } }
+        preferredFacility: { type: string, nullable: true }
+        specialNote: { type: string, nullable: true, maxLength: 2000 }
+        consentShareInEmergency:
+          type: boolean
+          default: false
+          description: 'Im lặng KHÔNG phải là đồng ý – mặc định false (TC-015)'
+
+    EmergencyProfile:
+      allOf:
+        - $ref: '#/components/schemas/EmergencyProfileInput'
+        - type: object
+          properties:
+            version: { type: integer }
+            updatedAt: { type: string, format: date-time }
+
+    VideoJoinInfo:
+      type: object
+      properties:
+        provider: { type: string, example: mock }
+        room: { type: string, example: 'case-1f2e...', description: 'Không chứa PII' }
+        token: { type: string }
+        serverUrl: { type: string }
+        expiresAt: { type: string, format: date-time }
+        recordingEnabled: { type: boolean }
+
+    HealthStatus:
+      type: object
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        environment: { type: string }
+        database:
+          type: object
+          properties:
+            healthy: { type: boolean }
+            driver: { type: string, enum: [postgres, memory] }
+        cache:
+          type: object
+          properties:
+            driver: { type: string, enum: [redis, memory] }
+        video:
+          type: object
+          properties:
+            provider: { type: string }
+            healthy: { type: boolean }
+        outboxBacklog: { type: integer }
+        degraded:
+          type: object
+          properties:
+            persistence: { type: boolean }
+            cache: { type: boolean }
+            video: { type: boolean }
+        policy:
+          type: object
+          properties:
+            recordingEnabled: { type: boolean }
+            guidanceAllowDrillContent: { type: boolean }
+            emsIntegrationMode: { type: string, enum: [mock, live] }

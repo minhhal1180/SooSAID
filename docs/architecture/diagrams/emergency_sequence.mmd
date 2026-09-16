@@ -1,0 +1,27 @@
+sequenceDiagram
+  participant U as Người dân
+  participant APP as Mobile App
+  participant API as S.O.S Aid Backend
+  participant OP as Operator/Bác sĩ trực
+  participant VID as Video Service
+  participant DSP as Dispatch/Crew
+  participant NOTI as Notification
+  U->>APP: Bấm S.O.S
+  APP->>API: POST /emergency-cases + GPS + Idempotency-Key
+  API-->>APP: caseId, code, status=QUEUED
+  API-->>OP: Realtime event case.created
+  APP->>API: Submit triage observations
+  OP->>API: Accept case
+  APP->>API: Request video token
+  OP->>API: Request video token
+  API->>VID: Create/join secure room
+  VID-->>APP: WebRTC media
+  VID-->>OP: WebRTC media
+  OP->>API: Dispatch ambulance/local responder
+  API-->>DSP: Assignment + location + case summary
+  API->>NOTI: Notify emergency contacts
+  DSP->>API: EN_ROUTE -> ON_SCENE
+  OP->>API: Finalize handover package
+  API-->>DSP: Handover data
+  DSP->>API: HANDED_OVER
+  OP->>API: CLOSED

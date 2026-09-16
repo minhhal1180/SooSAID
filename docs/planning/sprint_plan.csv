@@ -1,0 +1,10 @@
+﻿Sprint,Timebox,Theme,Deliverables,Exit Criteria
+S1,Tuần 1-2,Nền tảng & Identity,"Repo/CI, env, DB, OTP mobile, OIDC/MFA operator, ADR architecture",Architecture baseline approved; CI green; auth smoke pass
+S2,Tuần 3-4,SOS core & GPS,"Emergency case, idempotency, location, active-case UX, health profile/contact",Create case E2E without video; audit created
+S3,Tuần 5-6,Operator & Triage,"Realtime queue, case workspace, questionnaire versioning, notes",Operator can accept and handle simulated case
+S4,Tuần 7-8,Video & fallback,"WebRTC adapter, mobile/web call, network degradation path",Join success target met on test networks; fallback verified
+S5,Tuần 9-10,Map/Dispatch/Notification,"Facility/resource geo query, ambulance/responder assignment, contact alerts",Dispatch status E2E; map/resource data configurable
+S6,Tuần 11-12,Guidance/Media/Handover,"Approved guidance catalog, recording gate, handover package, facility view",Handover generated from full timeline; policy gates enforced
+S7,Tuần 13-14,Admin/Reporting/Resilience,"Admin data, audit UI, outbox/retry, offline guide, KPI dashboard",No critical domain event lost in retry tests
+S8,Tuần 15-16,Hardening & System Test,"Security, load, observability, E2E, backup/restore",No open P0/P1 security/functional defect; restore drill pass
+S9,Tuần 17-18,UAT/Pilot/Stabilization,"Controlled simulations, training, runbook, pilot, post-pilot evaluation",Pilot signoff + KPI report + next-stage decision

@@ -1,0 +1,13 @@
+flowchart LR
+  Citizen[Người dân / Người phát hiện] --> Mobile[S.O.S Aid Mobile]
+  Mobile --> Platform[S.O.S Aid Platform]
+  Operator[Tổng đài / Bác sĩ trực] --> OperatorWeb[Dashboard tiếp nhận]
+  OperatorWeb --> Platform
+  Platform --> Video[Video Provider / WebRTC]
+  Platform --> Map[Map / Geocoding Provider]
+  Platform --> Notify[Push / SMS / Voice Provider]
+  Platform --> Ambulance[Kíp xe cứu thương]
+  Platform --> Facility[Cơ sở y tế tiếp nhận]
+  Platform --> Responder[Người hỗ trợ tại chỗ]
+  Platform --> Contact[Người thân]
+  Platform -. Adapter chính thức khi được phép .-> EMS115[Hệ thống 115 / Đơn vị y tế]

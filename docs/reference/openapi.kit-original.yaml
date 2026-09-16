@@ -1,0 +1,428 @@
+openapi: 3.0.3
+info:
+  title: S.O.S Aid Reference API
+  version: 1.0.0
+  description: >-
+    Contract tham chiếu cho MVP/Pilot S.O.S Aid. Đây không phải API chính thức của 115.
+servers:
+  - url: https://api.example.com
+    description: Placeholder production endpoint
+  - url: http://localhost:3000
+    description: Local development
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Profile
+  - name: EmergencyCase
+  - name: Operator
+  - name: Dispatch
+  - name: Directory
+  - name: Reporting
+paths:
+  /v1/auth/otp/request:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Request OTP for phone authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone: {type: string, example: '+84901234567'}
+      responses:
+        '202': {description: OTP accepted for delivery}
+  /v1/auth/otp/verify:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Verify OTP and issue tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, otp]
+              properties:
+                phone: {type: string}
+                otp: {type: string}
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken: {type: string}
+                  refreshToken: {type: string}
+  /v1/me:
+    get:
+      tags: [Profile]
+      summary: Get current user profile
+      responses:
+        '200': {description: User profile}
+    patch:
+      tags: [Profile]
+      summary: Update current user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName: {type: string}
+                locale: {type: string, example: vi-VN}
+      responses:
+        '200': {description: Updated}
+  /v1/me/emergency-profile:
+    get:
+      tags: [Profile]
+      summary: Get emergency health profile
+      responses:
+        '200': {description: Emergency profile}
+    put:
+      tags: [Profile]
+      summary: Replace emergency health profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmergencyProfile'
+      responses:
+        '200': {description: Updated}
+  /v1/me/emergency-contacts:
+    get:
+      tags: [Profile]
+      summary: List emergency contacts
+      responses:
+        '200': {description: Contact list}
+    post:
+      tags: [Profile]
+      summary: Add emergency contact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, phone]
+              properties:
+                name: {type: string}
+                phone: {type: string}
+                relation: {type: string}
+      responses:
+        '201': {description: Created}
+  /v1/emergency-cases:
+    post:
+      tags: [EmergencyCase]
+      summary: Create an emergency case
+      description: >-
+        Client SHOULD send Idempotency-Key header. Server is authoritative for case id/state.
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEmergencyCaseRequest'
+      responses:
+        '201':
+          description: Emergency case created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmergencyCase'
+        '409': {description: Duplicate/idempotency conflict}
+  /v1/emergency-cases/{caseId}:
+    get:
+      tags: [EmergencyCase]
+      summary: Get case snapshot
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      responses:
+        '200':
+          description: Case detail
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EmergencyCase'}
+  /v1/emergency-cases/{caseId}/location:
+    post:
+      tags: [EmergencyCase]
+      summary: Append location sample
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/LocationSample'}
+      responses:
+        '202': {description: Accepted}
+  /v1/emergency-cases/{caseId}/triage:
+    post:
+      tags: [EmergencyCase]
+      summary: Submit observable-condition triage answers
+      description: Does not diagnose disease; stores structured observations.
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [answers, questionnaireVersion]
+              properties:
+                questionnaireVersion: {type: string, example: 'pilot-1'}
+                answers:
+                  type: array
+                  items:
+                    type: object
+                    required: [questionCode, value]
+                    properties:
+                      questionCode: {type: string, example: conscious}
+                      value: {type: string, example: 'yes'}
+      responses:
+        '202': {description: Accepted}
+  /v1/emergency-cases/{caseId}/video/session:
+    post:
+      tags: [EmergencyCase]
+      summary: Create/join video session token
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role: {type: string, enum: [caller, operator, clinician]}
+      responses:
+        '200':
+          description: Video join information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  provider: {type: string, example: livekit}
+                  room: {type: string}
+                  token: {type: string}
+                  expiresAt: {type: string, format: date-time}
+  /v1/emergency-cases/{caseId}/status:
+    post:
+      tags: [EmergencyCase]
+      summary: Transition case state
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [toStatus]
+              properties:
+                toStatus: {$ref: '#/components/schemas/CaseStatus'}
+                reason: {type: string}
+      responses:
+        '200': {description: State changed}
+        '409': {description: Invalid state transition}
+  /v1/emergency-cases/{caseId}/notes:
+    post:
+      tags: [EmergencyCase]
+      summary: Add professional/operational note
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: {type: string, maxLength: 4000}
+                noteType: {type: string, enum: [general, clinical_observation, access_instruction]}
+      responses:
+        '201': {description: Note created}
+  /v1/emergency-cases/{caseId}/handover:
+    post:
+      tags: [EmergencyCase]
+      summary: Generate/finalize digital handover package
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                receivingFacilityId: {type: string, format: uuid}
+                ambulanceUnitId: {type: string, format: uuid}
+      responses:
+        '201':
+          description: Handover created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  handoverId: {type: string, format: uuid}
+                  version: {type: integer}
+                  status: {type: string, example: finalized}
+  /v1/operator/queue:
+    get:
+      tags: [Operator]
+      summary: List active cases visible to current operator
+      parameters:
+        - in: query
+          name: status
+          schema: {type: string}
+        - in: query
+          name: serviceAreaId
+          schema: {type: string, format: uuid}
+      responses:
+        '200': {description: Queue items}
+  /v1/operator/cases/{caseId}/accept:
+    post:
+      tags: [Operator]
+      summary: Accept ownership/handling of a queued case
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      responses:
+        '200': {description: Case accepted}
+        '409': {description: Already accepted by another operator}
+  /v1/emergency-cases/{caseId}/dispatch:
+    post:
+      tags: [Dispatch]
+      summary: Create dispatch assignment
+      parameters:
+        - $ref: '#/components/parameters/CaseId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetType, targetId]
+              properties:
+                targetType: {type: string, enum: [ambulance_unit, local_responder]}
+                targetId: {type: string, format: uuid}
+                priority: {type: string, enum: [normal, urgent]}
+      responses:
+        '201': {description: Assignment created}
+  /v1/facilities/nearby:
+    get:
+      tags: [Directory]
+      summary: Find configured medical facilities near a coordinate
+      parameters:
+        - {in: query, name: lat, required: true, schema: {type: number, format: double}}
+        - {in: query, name: lng, required: true, schema: {type: number, format: double}}
+        - {in: query, name: radiusMeters, required: false, schema: {type: integer, default: 10000}}
+      responses:
+        '200': {description: Facilities ordered by configured routing score/distance}
+  /v1/resources/nearby:
+    get:
+      tags: [Directory]
+      summary: Find local support resources (first aid room, AED, stretcher, gate, etc.)
+      parameters:
+        - {in: query, name: lat, required: true, schema: {type: number, format: double}}
+        - {in: query, name: lng, required: true, schema: {type: number, format: double}}
+      responses:
+        '200': {description: Nearby resources}
+  /v1/reports/summary:
+    get:
+      tags: [Reporting]
+      summary: Aggregate pilot/reporting metrics
+      parameters:
+        - {in: query, name: from, required: true, schema: {type: string, format: date-time}}
+        - {in: query, name: to, required: true, schema: {type: string, format: date-time}}
+      responses:
+        '200': {description: Summary metrics}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    CaseId:
+      in: path
+      name: caseId
+      required: true
+      schema: {type: string, format: uuid}
+  schemas:
+    CaseStatus:
+      type: string
+      enum:
+        - CREATED
+        - QUEUED
+        - ACCEPTED
+        - VIDEO_CONNECTED
+        - DISPATCHED
+        - EN_ROUTE
+        - ON_SCENE
+        - HANDOVER_PENDING
+        - HANDED_OVER
+        - CLOSED
+        - CANCELLED
+        - FALSE_ALARM
+    LocationSample:
+      type: object
+      required: [lat, lng, capturedAt]
+      properties:
+        lat: {type: number, format: double}
+        lng: {type: number, format: double}
+        accuracyMeters: {type: number, format: double}
+        altitudeMeters: {type: number, format: double}
+        capturedAt: {type: string, format: date-time}
+        addressText: {type: string}
+        accessNote: {type: string}
+    EmergencyProfile:
+      type: object
+      properties:
+        bloodType: {type: string, nullable: true}
+        allergies: {type: array, items: {type: string}}
+        chronicConditions: {type: array, items: {type: string}}
+        medications: {type: array, items: {type: string}}
+        preferredFacility: {type: string, nullable: true}
+        specialNote: {type: string, nullable: true, maxLength: 2000}
+        consentShareInEmergency: {type: boolean}
+    CreateEmergencyCaseRequest:
+      type: object
+      required: [deviceId, location]
+      properties:
+        deviceId: {type: string, format: uuid}
+        location: {$ref: '#/components/schemas/LocationSample'}
+        triggerSource: {type: string, enum: [sos_button, drill, operator_created], default: sos_button}
+        numberOfPatients: {type: integer, minimum: 1, default: 1}
+        accessNote: {type: string, maxLength: 1000}
+        mediaConsent: {type: boolean, default: false}
+    EmergencyCase:
+      type: object
+      required: [id, code, status, createdAt]
+      properties:
+        id: {type: string, format: uuid}
+        code: {type: string, example: SOS-20260913-000123}
+        status: {$ref: '#/components/schemas/CaseStatus'}
+        serviceAreaId: {type: string, format: uuid, nullable: true}
+        callerUserId: {type: string, format: uuid, nullable: true}
+        activeOperatorId: {type: string, format: uuid, nullable: true}
+        latestLocation: {$ref: '#/components/schemas/LocationSample'}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}

@@ -1,0 +1,32 @@
+flowchart TB
+  subgraph Clients
+    M[Flutter Mobile]
+    W[Operator/Admin Web]
+    C[Crew/Responder PWA]
+  end
+  subgraph Edge
+    I[Ingress / WAF / TLS]
+  end
+  subgraph Backend[Modular Monolith Backend]
+    A[Auth & Identity]
+    E[Emergency Case]
+    T[Triage & Guidance]
+    D[Dispatch & Directory]
+    R[Realtime Gateway]
+    N[Notification]
+    H[Handover & Reporting]
+    AD[115 Integration Adapter]
+    O[Outbox Worker]
+  end
+  subgraph Data
+    PG[(PostgreSQL + PostGIS)]
+    REDIS[(Redis)]
+    S3[(S3 Object Storage)]
+  end
+  V[WebRTC / Video Service]
+  MAP[Map Provider]
+  PUSH[FCM/APNs/SMS]
+  M-->I;W-->I;C-->I;I-->A;I-->E;I-->R
+  E-->PG;T-->PG;D-->PG;H-->PG;A-->PG
+  R-->REDIS;E-->O;O-->PG;O-->N;N-->PUSH
+  E-->V;E-->S3;D-->MAP;AD-.->EMS[115/Medical Endpoint]

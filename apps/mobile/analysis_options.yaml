@@ -1,0 +1,22 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-raw-types: true
+  errors:
+    # Thiếu kiểu trả về trong một ứng dụng xử lý dữ liệu y tế là lỗi, không phải
+    # gợi ý — nó che mất chỗ dữ liệu bị ép kiểu sai.
+    always_declare_return_types: error
+    missing_required_param: error
+    missing_return: error
+
+linter:
+  rules:
+    - always_declare_return_types
+    - avoid_print
+    - prefer_const_constructors
+    - prefer_final_locals
+    - require_trailing_commas
+    - unawaited_futures
+    - use_build_context_synchronously

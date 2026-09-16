@@ -1,0 +1,24 @@
+{
+  "name": "sos-aid",
+  "version": "0.1.0",
+  "private": true,
+  "description": "S.O.S Aid - Ung dung ho tro so cap ngoai vien (MVP/Pilot)",
+  "workspaces": [
+    "apps/api",
+    "apps/operator-web"
+  ],
+  "scripts": {
+    "sync:contract": "node scripts/sync-contract.mjs",
+    "api:dev": "npm run start:dev --workspace apps/api",
+    "api:build": "npm run build --workspace apps/api",
+    "api:test": "npm run test --workspace apps/api",
+    "web:dev": "npm run dev --workspace apps/operator-web",
+    "web:build": "npm run build --workspace apps/operator-web",
+    "db:up": "docker compose -f infra/docker-compose.yml up -d",
+    "db:migrate": "node scripts/migrate.mjs",
+    "test": "npm run api:test"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  }
+}

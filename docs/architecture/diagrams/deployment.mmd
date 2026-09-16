@@ -1,0 +1,17 @@
+flowchart TB
+  Internet[Mobile/Web Internet] --> WAF[WAF / Load Balancer]
+  WAF --> APP1[App Instance A]
+  WAF --> APP2[App Instance B]
+  APP1 --> PG[(PostgreSQL Primary)]
+  APP2 --> PG
+  APP1 --> Redis[(Redis)]
+  APP2 --> Redis
+  APP1 --> Obj[(S3 Object Storage)]
+  APP2 --> Obj
+  Worker[Outbox/Async Worker] --> PG
+  Worker --> Push[Push/SMS Provider]
+  APP1 --> Video[WebRTC Service]
+  APP2 --> Video
+  Obs[Metrics/Logs/Tracing] --- APP1
+  Obs --- APP2
+  Obs --- Worker

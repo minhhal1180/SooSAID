@@ -1,0 +1,40 @@
+﻿Epic,ID,User Story / Task,Acceptance Criteria,Priority,Sprint,Owner,Dependencies
+Foundation,SOS-001,"Thiết lập monorepo, lint, test, CI",Build/test chạy tự động; branch protection; secret scan,P0,S1,Tech Lead/DevOps,
+Foundation,SOS-002,Khởi tạo PostgreSQL/PostGIS + migration framework,Migration tạo schema; rollback/dev reset tài liệu hóa,P0,S1,Backend,SOS-001
+Auth,SOS-003,OTP login mobile,"Request/verify OTP, rate limit, token rotation",P0,S1,Backend+Mobile,SOS-001
+Auth,SOS-004,OIDC/MFA operator/admin,Operator không dùng consumer OTP; role claims đúng,P0,S1,Backend+Web,SOS-001
+Profile,SOS-005,Emergency profile CRUD,Dữ liệu optional; consent flag; audit view/update,P1,S2,Backend+Mobile,SOS-003
+Profile,SOS-006,Emergency contacts CRUD,Tối thiểu name/phone; priority; notify preferences,P1,S2,Backend+Mobile,SOS-003
+Emergency Case,SOS-010,One-tap SOS create case,Idempotency; GPS/time/device captured; unique case code,P0,S2,Backend+Mobile,"SOS-002,SOS-003"
+Emergency Case,SOS-011,Active case screen,Hiển thị code/status/location; retry UX; cancel/false alarm rule,P0,S2,Mobile,SOS-010
+Location,SOS-012,Append location samples,Accuracy/capturedAt persisted; operator sees latest,P0,S2,Backend+Mobile,SOS-010
+Triage,SOS-013,Observable triage questionnaire,Versioned question set; no diagnosis text; submission stored,P0,S3,Backend+Mobile,SOS-010
+Operator,SOS-014,Operator queue realtime,New case < target latency; filter service area; no duplicate ownership,P0,S3,Backend+Web,SOS-010
+Operator,SOS-015,Case detail workspace,"Map, triage, caller, notes, status history in one screen",P0,S3,Web,SOS-014
+Realtime,SOS-016,WebSocket case events,Reconnect/resume; server authoritative snapshot after reconnect,P0,S3,Backend+Web+Mobile,SOS-010
+Video,SOS-020,Video provider adapter,Provider-agnostic interface; token TTL; room per case,P0,S4,Backend,SOS-010
+Video,SOS-021,Mobile/operator video UI,Join/mute/camera switch/network indicator,P0,S4,Mobile+Web,SOS-020
+Video,SOS-022,Network fallback workflow,Video fail -> audio/phone/manual 115 fallback + offline guide,P0,S4,Mobile+Backend,SOS-021
+Map,SOS-023,Facility/resource directory + nearby query,PostGIS nearby query; seeded pilot resources; filters,P0,S5,Backend+Web,SOS-002
+Dispatch,SOS-024,Ambulance assignment,Create assignment; crew ack; role/state validated,P0,S5,Backend+Web,"SOS-015,SOS-023"
+Dispatch,SOS-025,Crew PWA active assignment,View location/summary; EN_ROUTE/ON_SCENE update,P0,S5,Web/PWA,SOS-024
+Responder,SOS-026,Local responder directory/assignment,Only verified/available responders; radius/config rules,P1,S5,Backend+PWA,SOS-023
+Notification,SOS-027,Emergency contact notification,Push primary; SMS adapter optional; delivery status tracked,P1,S5,Backend,"SOS-006,SOS-010"
+Guidance,SOS-030,Versioned guidance catalog,Draft/approved/effective versions; clinician/admin control,P0,S6,Backend+Web,SOS-004
+Guidance,SOS-031,Guidance delivery to active case,Operator selects/updates content; display large/clear; event logged,P0,S6,Backend+Mobile+Web,"SOS-030,SOS-016"
+Media,SOS-032,Media/recording policy gate,Recording off by default; consent/policy; presigned access; retention tag,P0,S6,Backend+DevOps,SOS-020
+Handover,SOS-033,Digital handover package,Generate immutable version snapshot with case timeline/triage/notes,P0,S6,Backend+Web,"SOS-024,SOS-031"
+Handover,SOS-034,Receiving facility view,Read-only case summary with role/scope restriction,P1,S6,Web,SOS-033
+Admin,SOS-040,Service area/facility/resource admin,CRUD + map geometry/import; audit changes,P1,S7,Backend+Web,SOS-023
+Admin,SOS-041,Role/user/admin management,Least privilege; disable user; audit role changes,P0,S7,Backend+Web,SOS-004
+Reporting,SOS-042,Pilot dashboard metrics,Create/accept/video/dispatch/handover timing and success rates,P1,S7,Backend+Web,SOS-033
+Audit,SOS-043,Audit trail UI/API,Search by case/actor/time; export requires elevated permission,P0,S7,Backend+Web,SOS-041
+Resilience,SOS-050,Outbox + async notification worker,No lost domain event on DB commit; retry/DLQ strategy,P0,S7,Backend,SOS-010
+Resilience,SOS-051,Offline/degraded local UX,No network shows direct emergency action + cached approved guide,P0,S7,Mobile,"SOS-022,SOS-030"
+Security,SOS-060,Security hardening,"Rate limits, CSP, secure headers, secret manager integration",P0,S8,Tech Lead+DevOps,core features
+Performance,SOS-061,Load/performance test,Pilot target profile passes; bottlenecks documented,P0,S8,QA+Backend+DevOps,core features
+QA,SOS-062,E2E emergency flow automation,Happy path + video fallback + duplicate + false alarm,P0,S8,QA,core features
+Observability,SOS-063,Metrics/logs/tracing/alerts,Correlation id; dashboards; alerts for create/video/realtime errors,P0,S8,DevOps+Backend,SOS-001
+UAT,SOS-070,Controlled simulation UAT,School/home/sports/crowd scenarios executed and signed off,P0,S9,QA+BA+Medical SME,SOS-062
+Pilot,SOS-071,Pilot release + runbook drill,"Rollback, backup, incident drill, user training completed",P0,S9,All,SOS-070
+Pilot,SOS-072,Post-pilot stabilization,Defects triaged; KPI results; decision on wider integration,P0,S9,All,SOS-071

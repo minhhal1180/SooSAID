@@ -1,0 +1,36 @@
+﻿Test Case,Area,Precondition,Steps,Expected Result,Priority
+TC-001,SOS create,Online GPS granted,Tap SOS once,"201 created, unique code, status QUEUED, location stored",P0
+TC-002,SOS idempotency,Same request/idempotency key,Tap/retry multiple times,Only one case created; same response returned,P0
+TC-003,SOS double tap,User double taps rapidly,Two client attempts with different timing,UI locks; backend dedupe/risk rule prevents accidental duplicates,P0
+TC-004,GPS denied,Location permission denied,Tap SOS,Case can still continue per policy; user prompted for manual address/access note; fallback shown,P0
+TC-005,GPS low accuracy,Accuracy > configured threshold,Tap SOS,Accuracy shown; request refined sample; operator sees quality indicator,P1
+TC-006,Triage,Case active,Submit conscious/breathing/bleeding observations,Versioned answers persisted and visible to operator,P0
+TC-007,Operator race,2 operators see same queued case,Both accept concurrently,Exactly one wins; other gets 409/current owner,P0
+TC-008,Video happy path,Good network,Caller/operator join,Both connected; room scoped to case; token expires,P0
+TC-009,Video failure,Block UDP/provider,Join call,Fallback UX activated; case state remains usable,P0
+TC-010,Reconnect,WebSocket disconnected,Reconnect after 30s,Client fetches authoritative snapshot; no stale state,P0
+TC-011,Dispatch state,Operator role,Assign ambulance,"Assignment created, crew notified, audit written",P0
+TC-012,Invalid status,Case QUEUED,Crew sets HANDED_OVER,Rejected 409/403 based on rule,P0
+TC-013,Responder scope,Responder outside area/unverified,Dispatch,Not selectable/not authorized,P0
+TC-014,Emergency contact,Contact configured,Case created,Notification created and delivery result tracked,P1
+TC-015,Health profile consent,Share consent false,Operator views case,Sensitive profile not exposed except policy-approved fields,P0
+TC-016,Recording disabled,RECORDING_ENABLED=false,Video session runs,No recording asset created,P0
+TC-017,Recording policy,Recording enabled + consent,Run video,Recording tagged with retention class and audited access,P0
+TC-018,Handover,Case timeline complete,Finalize handover,Immutable version snapshot contains required fields,P0
+TC-019,Handover version,Existing finalized handover,Update then regenerate,New version created; old version unchanged,P1
+TC-020,Nearby facility,Seed data exists,Query coordinate/radius,"Ordered results, distance fields reasonable",P1
+TC-021,Nearby resource,Pilot resources exist,Query location,First aid room/gate/etc returned by radius/type,P1
+TC-022,Offline cold start,No network,Open app,Cached approved offline guidance/fallback action available; no fake online state,P0
+TC-023,Outbox retry,Push provider down,Create case/notify,DB case commits; notification retried; no duplicate domain state,P0
+TC-024,Audit,Authorized user views health profile,Open profile,Audit record includes actor/resource/case/time/result,P0
+TC-025,Unauthorized case access,User from different scope,GET case,403 and security audit/metric,P0
+TC-026,Rate limit OTP,High request frequency,Spam OTP,429 after threshold; no provider flood,P0
+TC-027,Rate limit SOS abuse,Automated repeated creates,Flood endpoint,Protection triggers without blocking valid recovery flow globally,P0
+TC-028,Object URL expiry,Media exists,Use expired presigned URL,Access denied; new authorization required,P0
+TC-029,False alarm,Operator accepted,Mark false alarm,Allowed role/reason required; notifications/state updated,P1
+TC-030,Case close,Handover completed,Close case,CLOSED; no further operational status except admin correction workflow,P1
+TC-031,Backup restore,Staging backup available,Restore to clean env,Case/audit/handover integrity verified,P0
+TC-032,Performance create,Load profile configured,Run create-case load,"P95 within agreed target, error rate below threshold",P0
+TC-033,Security token expiry,Expired access token,Call sensitive API,401; refresh/re-auth flow correct,P0
+TC-034,Admin role change,Admin changes operator role,Save,Audit event + immediate/defined-session effect documented,P1
+TC-035,Clinical content version,Old case has guidance v1; v2 published,Review old case,Historical event references v1; new case uses v2,P0

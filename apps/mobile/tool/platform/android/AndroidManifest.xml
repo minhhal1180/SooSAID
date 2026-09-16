@@ -1,0 +1,85 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+      AndroidManifest cho S.O.S Aid.
+
+      Copy đè lên android/app/src/main/AndroidManifest.xml bởi
+      tool/bootstrap_platforms.* sau `flutter create`.
+
+      Nguyên tắc: chỉ khai đúng quyền đang dùng. Mỗi quyền thừa là một câu hỏi
+      phải trả lời khi kiểm duyệt và một rủi ro riêng tư không cần thiết.
+    -->
+
+    <!-- Gọi API backend và kết nối WebRTC. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!--
+      Vị trí: chỉ FOREGROUND. Không khai ACCESS_BACKGROUND_LOCATION — Google
+      Play yêu cầu giải trình riêng và MVP chưa cần theo dõi khi app ở nền.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- Video call với nhân viên trực. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!--
+      Giữ cuộc gọi sống khi màn hình tắt, để người dùng rảnh hai tay làm sơ cứu.
+    -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+
+    <!--
+      KHÔNG khai CALL_PHONE: app dùng ACTION_DIAL (mở sẵn số cho người dùng tự
+      bấm) thay vì tự động gọi. Ứng dụng không bao giờ được tự ý quay số thay
+      người dùng.
+    -->
+
+    <!-- Thiết bị không có camera vẫn cài được; video chỉ là một tính năng. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+
+    <application
+        android:label="S.O.S Aid"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="portrait">
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+    <!--
+      Android 11+ yêu cầu khai báo tường minh các intent mà app muốn truy vấn.
+      Thiếu khối này thì `canLaunchUrl(tel:...)` trả về false và nút gọi cấp cứu
+      im lặng không hoạt động.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+    </queries>
+</manifest>

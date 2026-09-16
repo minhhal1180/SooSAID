@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../core/config.dart';
+import '../core/emergency_dialer.dart';
 import '../core/location_service.dart';
 import '../main.dart';
 import '../state/app_state.dart';
 import 'guidance_screen.dart';
+import 'profile_screen.dart';
 import 'sos_active_screen.dart';
 
 /// M02 – Màn hình chính.
@@ -27,9 +29,11 @@ class HomeScreen extends StatelessWidget {
         title: const Text('S.O.S Aid'),
         actions: <Widget>[
           IconButton(
-            tooltip: 'Đăng xuất',
-            icon: const Icon(Icons.logout),
-            onPressed: () => state.logout(),
+            tooltip: 'Hồ sơ của tôi',
+            icon: const Icon(Icons.person_outline),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ProfileScreen()),
+            ),
           ),
         ],
       ),
@@ -56,7 +60,8 @@ class HomeScreen extends StatelessWidget {
                       icon: const Icon(Icons.menu_book_outlined),
                       label: const Text('Hướng dẫn'),
                       onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(builder: (_) => const GuidanceScreen()),
+                        MaterialPageRoute<void>(
+                            builder: (_) => const GuidanceScreen()),
                       ),
                     ),
                   ),
@@ -72,10 +77,27 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              Text(
-                'Trong mọi tình huống nguy cấp, hãy gọi ${AppConfig.emergencyPhoneNumber}.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
+              // Đường ra số cấp cứu thật, luôn có mặt và không phụ thuộc mạng
+              // hay backend (TDD §12, runbook SEV-1).
+              TextButton.icon(
+                icon: const Icon(Icons.phone_in_talk),
+                label: const Text(
+                  'Gọi thẳng ${AppConfig.emergencyPhoneNumber}',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                onPressed: () async {
+                  final dialled = await EmergencyDialer.callEmergencyNumber();
+                  if (!dialled && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Thiết bị này không gọi được. Hãy bấm số '
+                          '${AppConfig.emergencyPhoneNumber} trên máy khác.',
+                        ),
+                      ),
+                    );
+                  }
+                },
               ),
             ],
           ),
@@ -132,14 +154,18 @@ class _SosButton extends StatelessWidget {
                           fontSize: 48,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 2,
-                          color: disabled ? scheme.onSurfaceVariant : scheme.onError,
+                          color: disabled
+                              ? scheme.onSurfaceVariant
+                              : scheme.onError,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         disabled ? 'Vui lòng chờ…' : 'Nhấn để gọi hỗ trợ',
                         style: TextStyle(
-                          color: disabled ? scheme.onSurfaceVariant : scheme.onError,
+                          color: disabled
+                              ? scheme.onSurfaceVariant
+                              : scheme.onError,
                         ),
                       ),
                     ],
@@ -182,7 +208,8 @@ class _LocationHint extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 4),
-            const Text('Hãy mô tả nơi xảy ra sự cố để lực lượng y tế tìm được nhanh hơn.'),
+            const Text(
+                'Hãy mô tả nơi xảy ra sự cố để lực lượng y tế tìm được nhanh hơn.'),
             const SizedBox(height: 10),
             TextField(
               decoration: const InputDecoration(
@@ -243,7 +270,8 @@ class _FailureFallback extends StatelessWidget {
         children: <Widget>[
           Text(
             headline,
-            style: TextStyle(fontWeight: FontWeight.w700, color: scheme.onErrorContainer),
+            style: TextStyle(
+                fontWeight: FontWeight.w700, color: scheme.onErrorContainer),
           ),
           const SizedBox(height: 4),
           Text(

@@ -107,7 +107,6 @@ class _GuidanceCard extends StatelessWidget {
                 ),
               ),
             ),
-
           ...guidance.steps.map(
             (step) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -127,12 +126,13 @@ class _GuidanceCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   // Chữ lớn: người dùng cầm điện thoại cách xa hoặc tay đang bẩn.
-                  Expanded(child: Text(step.text, style: const TextStyle(fontSize: 17))),
+                  Expanded(
+                      child: Text(step.text,
+                          style: const TextStyle(fontSize: 17))),
                 ],
               ),
             ),
           ),
-
           if (guidance.disclaimer != null) ...<Widget>[
             const Divider(),
             Text(
@@ -140,7 +140,6 @@ class _GuidanceCard extends StatelessWidget {
               style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
             ),
           ],
-
           const SizedBox(height: 6),
           Text(
             'Mã ${guidance.code} · phiên bản ${guidance.version}',
@@ -157,19 +156,19 @@ class _EmptyGuidance extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
+    return const Padding(
+      padding: EdgeInsets.all(24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          const Icon(Icons.cloud_off, size: 48),
-          const SizedBox(height: 12),
-          const Text(
+          Icon(Icons.cloud_off, size: 48),
+          SizedBox(height: 12),
+          Text(
             'Chưa có nội dung hướng dẫn nào được tải về máy.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 17),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             'Hãy kết nối mạng một lần để tải nội dung, sau đó vẫn xem được khi mất sóng. '
             'Trong lúc này, gọi ${AppConfig.emergencyPhoneNumber} để được hướng dẫn trực tiếp.',

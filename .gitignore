@@ -24,10 +24,29 @@ apps/mobile/.dart_tool/
 apps/mobile/.flutter-plugins
 apps/mobile/.flutter-plugins-dependencies
 apps/mobile/build/
-apps/mobile/pubspec.lock
-apps/mobile/ios/Pods/
-apps/mobile/android/.gradle/
-apps/mobile/android/local.properties
+# LƯU Ý: `pubspec.lock` ĐƯỢC commit. Đây là application, không phải library —
+# khoá phiên bản để CI và máy lập trình viên build ra cùng một kết quả, điều
+# bắt buộc với một pipeline phát hành lên App Store.
+
+# Thư mục nền tảng được SINH RA bởi tool/bootstrap_platforms.*, không commit.
+# Nguồn sự thật của cấu hình iOS/Android nằm ở apps/mobile/tool/platform/.
+# Lý do: project Xcode/Gradle do `flutter create` sinh theo đúng phiên bản
+# Flutter đang dùng; commit chúng gây xung đột merge liên miên và dễ lệch version.
+apps/mobile/ios/
+apps/mobile/android/
+
+# --- Ký số iOS: TUYỆT ĐỐI KHÔNG COMMIT --------------------------------------
+# Ai có các file này thì ký được ứng dụng mạo danh tổ chức của bạn.
+*.p12
+*.p8
+*.mobileprovision
+*.certSigningRequest
+*.cer
+ios_distribution.key
+p12_base64.txt
+# ExportOptions.plist sinh ra chứa Team ID thật; bản mẫu trong tool/ thì giữ lại.
+ExportOptions.plist
+!apps/mobile/tool/platform/ios/ExportOptions.plist
 
 # IDE
 .idea/

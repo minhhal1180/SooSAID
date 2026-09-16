@@ -73,7 +73,6 @@ class _QuestionList extends StatelessWidget {
           child: Text(questionnaire.disclaimer),
         ),
         const SizedBox(height: 16),
-
         ...questionnaire.questions.map((question) {
           final selected = state.triageAnswers[question.code];
 
@@ -86,13 +85,15 @@ class _QuestionList extends StatelessWidget {
                 children: <Widget>[
                   Text(
                     question.label,
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w600),
                   ),
                   if (question.helpText.isNotEmpty) ...<Widget>[
                     const SizedBox(height: 4),
                     Text(
                       question.helpText,
-                      style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
+                      style: TextStyle(
+                          fontSize: 14, color: scheme.onSurfaceVariant),
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -108,14 +109,16 @@ class _QuestionList extends StatelessWidget {
                             height: 52,
                             child: isSelected
                                 ? FilledButton(
-                                    onPressed: () =>
-                                        state.setTriageAnswer(question.code, value),
-                                    child: Text(triageAnswerLabels[value] ?? value),
+                                    onPressed: () => state.setTriageAnswer(
+                                        question.code, value),
+                                    child: Text(
+                                        triageAnswerLabels[value] ?? value),
                                   )
                                 : OutlinedButton(
-                                    onPressed: () =>
-                                        state.setTriageAnswer(question.code, value),
-                                    child: Text(triageAnswerLabels[value] ?? value),
+                                    onPressed: () => state.setTriageAnswer(
+                                        question.code, value),
+                                    child: Text(
+                                        triageAnswerLabels[value] ?? value),
                                   ),
                           ),
                         ),

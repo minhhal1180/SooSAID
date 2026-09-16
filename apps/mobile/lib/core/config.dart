@@ -41,4 +41,27 @@ class AppConfig {
   /// Sai số GPS vượt ngưỡng này thì nhắc người dùng bổ sung mốc nhận dạng
   /// (TC-005). Khớp `LOW_ACCURACY_THRESHOLD_METERS` ở backend.
   static const double lowAccuracyThresholdMeters = 100;
+
+  /// Bán kính tìm điểm hỗ trợ tại chỗ quanh hiện trường (M07).
+  /// 1 km: đủ rộng cho một khuôn viên trường/khu dân cư, đủ hẹp để danh sách
+  /// còn hữu ích khi người dùng phải chạy bộ tới lấy.
+  static const int nearbyResourceRadiusMeters = 1000;
+
+  // --- Bản đồ ---------------------------------------------------------------
+
+  /// Tile server OpenStreetMap. Đổi sang nhà cung cấp có SLA khi triển khai
+  /// diện rộng; OSM công cộng không cam kết dịch vụ.
+  static const String osmTileUrlTemplate = String.fromEnvironment(
+    'OSM_TILE_URL',
+    defaultValue: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  );
+
+  /// OSM yêu cầu ứng dụng khai báo định danh khi gọi tile.
+  static const String osmUserAgent = 'vn.sosaid.mobile';
+
+  // --- Video ----------------------------------------------------------------
+
+  /// Sau ngần này mà video vẫn chưa kết nối được thì hiển thị phương án thoại.
+  /// Người ở hiện trường không có thời gian chờ một thanh loading vô định.
+  static const Duration videoConnectTimeout = Duration(seconds: 12);
 }

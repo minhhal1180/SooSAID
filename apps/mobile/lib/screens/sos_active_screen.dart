@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../core/config.dart';
+import '../core/emergency_dialer.dart';
 import '../main.dart';
 import '../models/emergency_case.dart';
 import '../state/app_state.dart';
 import 'guidance_screen.dart';
+import 'map_screen.dart';
 import 'triage_screen.dart';
+import 'video_call_screen.dart';
 
 /// M03 – Màn hình theo dõi ca đang hoạt động.
 ///
@@ -40,7 +43,18 @@ class SosActiveScreen extends StatelessWidget {
             _LocationStatus(state: state),
             const SizedBox(height: 20),
 
+            // Video là hành động chính khi ca đã được tiếp nhận: nhân viên trực
+            // cần nhìn thấy hiện trường.
             FilledButton.icon(
+              icon: const Icon(Icons.videocam),
+              label: const Text('Mở video với nhân viên trực'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                    builder: (_) => const VideoCallScreen()),
+              ),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
               icon: const Icon(Icons.fact_check_outlined),
               label: const Text('Trả lời câu hỏi quan sát'),
               onPressed: () => Navigator.of(context).push(
@@ -53,6 +67,14 @@ class SosActiveScreen extends StatelessWidget {
               label: const Text('Xem hướng dẫn sơ cấp cứu'),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const GuidanceScreen()),
+              ),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.map_outlined),
+              label: const Text('Bản đồ và điểm hỗ trợ gần đây'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const MapScreen()),
               ),
             ),
 
@@ -74,6 +96,12 @@ class SosActiveScreen extends StatelessWidget {
               '${AppConfig.emergencyPhoneNumber} ngay.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 6),
+            FilledButton.tonalIcon(
+              icon: const Icon(Icons.phone_in_talk),
+              label: const Text('Gọi ${AppConfig.emergencyPhoneNumber}'),
+              onPressed: () => EmergencyDialer.callEmergencyNumber(),
             ),
           ],
         ),
@@ -143,7 +171,8 @@ class _CaseCodeCard extends StatelessWidget {
       ),
       child: Column(
         children: <Widget>[
-          Text('MÃ CA CẤP CỨU', style: TextStyle(color: scheme.onPrimaryContainer)),
+          Text('MÃ CA CẤP CỨU',
+              style: TextStyle(color: scheme.onPrimaryContainer)),
           const SizedBox(height: 6),
           SelectableText(
             code,
@@ -179,7 +208,8 @@ class _PhaseStepper extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text('Tiến trình xử lý', style: Theme.of(context).textTheme.titleMedium),
+        Text('Tiến trình xử lý',
+            style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 10),
         ...CasePhase.values.map((phase) {
           final isDone = phase.stepIndex < current.stepIndex;
@@ -195,7 +225,9 @@ class _PhaseStepper extends StatelessWidget {
                       : isCurrent
                           ? Icons.radio_button_checked
                           : Icons.radio_button_unchecked,
-                  color: isDone || isCurrent ? scheme.primary : scheme.outlineVariant,
+                  color: isDone || isCurrent
+                      ? scheme.primary
+                      : scheme.outlineVariant,
                   size: 24,
                 ),
                 const SizedBox(width: 12),
@@ -205,7 +237,9 @@ class _PhaseStepper extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w400,
-                      color: isDone || isCurrent ? scheme.onSurface : scheme.outline,
+                      color: isDone || isCurrent
+                          ? scheme.onSurface
+                          : scheme.outline,
                     ),
                   ),
                 ),
@@ -237,7 +271,8 @@ class _LocationStatus extends StatelessWidget {
               children: <Widget>[
                 const Icon(Icons.location_on_outlined, size: 20),
                 const SizedBox(width: 8),
-                Text('Vị trí đã gửi', style: Theme.of(context).textTheme.titleMedium),
+                Text('Vị trí đã gửi',
+                    style: Theme.of(context).textTheme.titleMedium),
               ],
             ),
             const SizedBox(height: 8),

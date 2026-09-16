@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Info.plist cho S.O.S Aid iOS.
+
+  File này ĐƯỢC COPY ĐÈ lên ios/Runner/Info.plist bởi tool/bootstrap_platforms.*
+  sau khi `flutter create` sinh ra project Xcode. Lý do không commit thẳng vào
+  ios/: `flutter create` có thể ghi đè file trong ios/, nên nguồn sự thật phải
+  nằm ngoài thư mục đó.
+
+  CẢNH BÁO REVIEW: mọi chuỗi NS*UsageDescription bên dưới đều BẮT BUỘC. Thiếu
+  một chuỗi thì app crash ngay khi xin quyền tương ứng, và Apple từ chối bản nộp.
+  Nội dung phải nói RÕ dùng quyền để làm gì — mô tả chung chung ("app cần quyền
+  này") là lý do bị reject phổ biến nhất.
+-->
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>vi_VN</string>
+	<key>CFBundleDisplayName</key>
+	<string>S.O.S Aid</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>sos_aid_mobile</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+
+	<!-- Tiếng Việt là ngôn ngữ chính; khai báo để App Store hiển thị đúng. -->
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>vi</string>
+		<string>en</string>
+	</array>
+
+	<!-- ================================================================ -->
+	<!-- QUYỀN RIÊNG TƯ                                                   -->
+	<!-- ================================================================ -->
+
+	<!--
+	  Vị trí: chỉ xin "When In Use", KHÔNG xin "Always".
+	  Quyền nền đòi hỏi giải trình nặng với Apple và chưa cần thiết cho MVP —
+	  ứng dụng chỉ gửi vị trí trong lúc người dùng đang mở màn hình ca cấp cứu.
+	  Nếu sau này cần theo dõi khi app ở nền, phải bổ sung
+	  NSLocationAlwaysAndWhenInUseUsageDescription và UIBackgroundModes location,
+	  kèm giải trình trong App Review notes.
+	-->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>S.O.S Aid dùng vị trí của bạn để gửi toạ độ chính xác nơi xảy ra sự cố cho tổng đài và kíp cấp cứu. Không có vị trí, lực lượng y tế sẽ mất nhiều thời gian hơn để tìm đến hiện trường.</string>
+
+	<key>NSCameraUsageDescription</key>
+	<string>S.O.S Aid dùng camera để nhân viên y tế trực có thể quan sát trực tiếp hiện trường và tình trạng người gặp nạn qua video, từ đó hướng dẫn bạn sơ cấp cứu chính xác hơn.</string>
+
+	<key>NSMicrophoneUsageDescription</key>
+	<string>S.O.S Aid dùng micro để bạn trao đổi bằng lời với nhân viên y tế trực trong cuộc gọi video hỗ trợ khẩn cấp.</string>
+
+	<!--
+	  Danh bạ KHÔNG được dùng: người liên hệ khẩn cấp do người dùng tự nhập tay.
+	  Cố ý không khai báo NSContactsUsageDescription để giảm bề mặt dữ liệu cá
+	  nhân mà ứng dụng chạm tới (threat model - data minimisation).
+	-->
+
+	<!-- ================================================================ -->
+	<!-- MẠNG                                                             -->
+	<!-- ================================================================ -->
+
+	<!--
+	  Giữ App Transport Security ở mức mặc định (chỉ HTTPS) cho mọi kết nối
+	  Internet. Chỉ mở ngoại lệ cho mạng nội bộ, để lập trình viên chạy backend
+	  ở localhost/LAN mà KHÔNG phải hạ bảo mật toàn cục.
+	-->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+
+	<!--
+	  Cho phép mở trình quay số bằng `tel:` — đây là phương án dự phòng bắt buộc
+	  khi mất mạng hoặc video lỗi (TDD §12). Thiếu khai báo này thì url_launcher
+	  không kiểm tra được scheme và nút gọi cấp cứu sẽ im lặng không hoạt động.
+	-->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+	</array>
+
+	<!-- ================================================================ -->
+	<!-- CHẠY NỀN                                                         -->
+	<!-- ================================================================ -->
+
+	<!--
+	  `audio`: giữ cuộc gọi video khi người dùng chuyển sang app khác hoặc khoá
+	  màn hình để thực hiện sơ cứu bằng hai tay. Đây là nhu cầu thật của luồng
+	  nghiệp vụ, cần ghi rõ trong App Review notes.
+	-->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+
+	<!-- ================================================================ -->
+	<!-- TUÂN THỦ XUẤT KHẨU                                               -->
+	<!-- ================================================================ -->
+
+	<!--
+	  Ứng dụng chỉ dùng mã hoá tiêu chuẩn (HTTPS/TLS, Keychain, WebRTC/DTLS-SRTP),
+	  thuộc diện miễn trừ. Khai báo sẵn ở đây để mỗi lần nộp TestFlight không
+	  phải trả lời thủ công câu hỏi export compliance — CI sẽ đứng chờ vô hạn
+	  nếu thiếu dòng này.
+	  Nếu sau này bổ sung thuật toán mã hoá riêng, PHẢI xem xét lại khai báo.
+	-->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+
+	<!-- ================================================================ -->
+	<!-- GIAO DIỆN                                                        -->
+	<!-- ================================================================ -->
+
+	<!--
+	  Khoá hướng dọc: giao diện cấp cứu được thiết kế cho một tay cầm dọc, và
+	  xoay ngang giữa lúc khẩn cấp làm người dùng mất phương hướng.
+	-->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+	</array>
+
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+
+	<!-- Không cho hệ thống tự tắt màn hình khi đang có ca: người dùng cần nhìn
+	     hướng dẫn trong lúc hai tay đang làm sơ cứu. App tự quản lý cờ này khi
+	     vào màn hình ca, nên ở đây giữ mặc định là false. -->
+	<key>UIStatusBarHidden</key>
+	<false/>
+</dict>
+</plist>

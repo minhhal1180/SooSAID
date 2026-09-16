@@ -10,7 +10,8 @@ class GuidanceStep {
         text: json['text'] as String? ?? '',
       );
 
-  Map<String, dynamic> toJson() => <String, dynamic>{'order': order, 'text': text};
+  Map<String, dynamic> toJson() =>
+      <String, dynamic>{'order': order, 'text': text};
 }
 
 /// Nội dung hướng dẫn đã version hoá (FR-010).
@@ -91,8 +92,8 @@ class TriageQuestion {
         code: json['code'] as String,
         label: json['label'] as String? ?? '',
         helpText: json['helpText'] as String? ?? '',
-        allowedValues:
-            ((json['allowedValues'] as List<dynamic>?) ?? const []).cast<String>(),
+        allowedValues: ((json['allowedValues'] as List<dynamic>?) ?? const [])
+            .cast<String>(),
       );
 }
 
@@ -109,12 +110,14 @@ class TriageQuestionnaire {
   final String disclaimer;
   final List<TriageQuestion> questions;
 
-  factory TriageQuestionnaire.fromJson(Map<String, dynamic> json) => TriageQuestionnaire(
+  factory TriageQuestionnaire.fromJson(Map<String, dynamic> json) =>
+      TriageQuestionnaire(
         version: json['version'] as String,
         title: json['title'] as String? ?? '',
         disclaimer: json['disclaimer'] as String? ?? '',
         questions: ((json['questions'] as List<dynamic>?) ?? const [])
-            .map((question) => TriageQuestion.fromJson(question as Map<String, dynamic>))
+            .map((question) =>
+                TriageQuestion.fromJson(question as Map<String, dynamic>))
             .toList(),
       );
 }

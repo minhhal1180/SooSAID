@@ -1,26 +1,52 @@
 name: sos_aid_mobile
 description: S.O.S Aid - ung dung ho tro so cap ngoai vien danh cho nguoi dan
 publish_to: "none"
+
+# version: <tên hiển thị>+<build number>
+# Build number PHẢI tăng ở mỗi lần nộp TestFlight/App Store; CI tự tăng bằng
+# --build-number (xem .github/workflows/mobile-ios.yml).
 version: 0.1.0+1
 
 environment:
-  sdk: ">=3.3.0 <4.0.0"
-  flutter: ">=3.19.0"
+  # Yêu cầu Flutter 3.27+ vì code dùng `Color.withValues` (API thay thế cho
+  # `withOpacity` đã deprecated). Dùng bản cũ hơn sẽ lỗi biên dịch với thông
+  # điệp khó hiểu, nên ràng buộc rõ ở đây để `flutter pub get` báo ngay.
+  sdk: ">=3.6.0 <4.0.0"
+  flutter: ">=3.27.0"
 
 dependencies:
   flutter:
     sdk: flutter
 
-  # Gọi REST API của backend.
+  # --- Giao tiếp backend ---------------------------------------------------
   http: ^1.2.2
 
-  # Lưu token và nội dung hướng dẫn đã duyệt để dùng khi mất mạng (SOS-051).
+  # --- Lưu trữ cục bộ ------------------------------------------------------
+  # Token đăng nhập: Keychain (iOS) / EncryptedSharedPreferences (Android).
+  # Thay cho shared_preferences vì threat model yêu cầu secure storage cho
+  # credential — điện thoại có thể mất hoặc bị người khác cầm.
+  flutter_secure_storage: ^9.2.2
+  # Nội dung hướng dẫn đã duyệt (không nhạy cảm) để xem offline (SOS-051).
   shared_preferences: ^2.3.3
 
-  # Lấy toạ độ GPS kèm độ chính xác — bắt buộc cho FR-001/FR-003.
+  # --- Thiết bị ------------------------------------------------------------
   geolocator: ^13.0.2
+  # Xin quyền camera/mic cho video call, có kiểm soát thời điểm hỏi.
+  permission_handler: ^11.3.1
+  # Gọi trực tiếp số cấp cứu khi mất mạng hoặc backend lỗi (TDD §12).
+  url_launcher: ^6.3.1
 
-  # Sinh Idempotency-Key phía client (FR-002).
+  # --- Video (Rule 8.1 – luôn đi qua adapter) ------------------------------
+  # SDK chỉ được import trong lib/core/video/livekit_video_adapter.dart.
+  livekit_client: ^2.3.0
+
+  # --- Bản đồ (M07) --------------------------------------------------------
+  # OpenStreetMap: không cần API key, phù hợp Pilot. Chỉ dùng trong
+  # lib/core/map/osm_map_adapter.dart để đổi nhà cung cấp không phải sửa UI.
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
+  # --- Tiện ích ------------------------------------------------------------
   uuid: ^4.5.1
 
 dev_dependencies:

@@ -46,14 +46,13 @@ class _AuthScreenState extends State<AuthScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               const SizedBox(height: 24),
-              Text('S.O.S Aid', style: Theme.of(context).textTheme.headlineMedium),
+              Text('S.O.S Aid',
+                  style: Theme.of(context).textTheme.headlineMedium),
               const SizedBox(height: 4),
               const Text('Hỗ trợ sơ cấp cứu ngoài bệnh viện'),
               const SizedBox(height: 20),
-
               const _ScopeNotice(),
               const SizedBox(height: 24),
-
               if (!awaitingOtp) ...<Widget>[
                 TextField(
                   controller: _phoneController,
@@ -71,11 +70,13 @@ class _AuthScreenState extends State<AuthScreen> {
                 FilledButton(
                   onPressed: _busy
                       ? null
-                      : () => _run(() => state.requestOtp(_phoneController.text)),
+                      : () =>
+                          _run(() => state.requestOtp(_phoneController.text)),
                   child: Text(_busy ? 'Đang gửi…' : 'Nhận mã xác thực'),
                 ),
               ] else ...<Widget>[
-                Text('Mã xác thực đã được gửi tới ${_maskPhone(state.pendingPhone)}'),
+                Text(
+                    'Mã xác thực đã được gửi tới ${_maskPhone(state.pendingPhone)}'),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _otpController,
@@ -90,8 +91,9 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 const SizedBox(height: 8),
                 FilledButton(
-                  onPressed:
-                      _busy ? null : () => _run(() => state.verifyOtp(_otpController.text)),
+                  onPressed: _busy
+                      ? null
+                      : () => _run(() => state.verifyOtp(_otpController.text)),
                   child: Text(_busy ? 'Đang xác thực…' : 'Xác nhận'),
                 ),
                 TextButton(
@@ -101,7 +103,6 @@ class _AuthScreenState extends State<AuthScreen> {
                   child: const Text('Gửi lại mã'),
                 ),
               ],
-
               if (state.authError != null) ...<Widget>[
                 const SizedBox(height: 16),
                 _ErrorBox(message: state.authError!),
@@ -116,7 +117,9 @@ class _AuthScreenState extends State<AuthScreen> {
   /// Chỉ hiển thị 3 số cuối – màn hình có thể bị người khác nhìn thấy (Rule 11).
   String _maskPhone(String phone) {
     final digits = phone.replaceAll(RegExp(r'\D'), '');
-    return digits.length < 4 ? '***' : '***${digits.substring(digits.length - 3)}';
+    return digits.length < 4
+        ? '***'
+        : '***${digits.substring(digits.length - 3)}';
   }
 }
 

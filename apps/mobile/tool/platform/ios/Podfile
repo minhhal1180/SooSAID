@@ -1,0 +1,88 @@
+# Podfile cho S.O.S Aid iOS.
+#
+# Copy đè lên ios/Podfile bởi tool/bootstrap_platforms.* sau `flutter create`.
+#
+# Hai khác biệt so với Podfile mặc định của Flutter, cả hai đều BẮT BUỘC:
+#   1. platform :ios, '13.0'  — livekit_client (WebRTC) và flutter_secure_storage
+#      không hỗ trợ iOS 12 trở xuống. Để mặc định 12.0 sẽ lỗi lúc `pod install`.
+#   2. Macro PERMISSION_* của permission_handler — không khai báo thì thư viện
+#      biên dịch KÈM mọi loại quyền (danh bạ, ảnh, sức khoẻ, Bluetooth...).
+#      Apple sẽ từ chối bản nộp vì app xin quyền mà Info.plist không giải thích.
+#      Chỉ bật đúng camera, micro và vị trí.
+
+platform :ios, '13.0'
+
+# CocoaPods analytics làm chậm build trên CI mà không mang lại gì.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. Chay `flutter pub get` truoc."
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Thu `flutter clean` roi chay lai."
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+
+      # Chỉ biên dịch các quyền thực sự dùng. Mỗi dòng `=1` tương ứng một chuỗi
+      # NS*UsageDescription đã khai trong Info.plist — hai nơi phải khớp nhau.
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+        '$(inherited)',
+        'PERMISSION_CAMERA=1',
+        'PERMISSION_MICROPHONE=1',
+        'PERMISSION_LOCATION_WHENINUSE=1',
+      ]
+
+      # Tắt tường minh những quyền KHÔNG dùng, để nếu một dependency mới vô tình
+      # kéo chúng vào thì build vẫn sạch và App Review không thấy quyền lạ.
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] += [
+        'PERMISSION_EVENTS=0',
+        'PERMISSION_EVENTS_FULL_ACCESS=0',
+        'PERMISSION_REMINDERS=0',
+        'PERMISSION_CONTACTS=0',
+        'PERMISSION_PHOTOS=0',
+        'PERMISSION_NOTIFICATIONS=0',
+        'PERMISSION_MEDIA_LIBRARY=0',
+        'PERMISSION_SENSORS=0',
+        'PERMISSION_BLUETOOTH=0',
+        'PERMISSION_APP_TRACKING_TRANSPARENCY=0',
+        'PERMISSION_CRITICAL_ALERTS=0',
+        'PERMISSION_ASSISTANT=0',
+        'PERMISSION_LOCATION=0',
+        'PERMISSION_SPEECH_RECOGNIZER=0',
+      ]
+    end
+  end
+end

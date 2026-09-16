@@ -1,0 +1,173 @@
+name: Mobile iOS – build & TestFlight
+
+# Vì sao workflow này tồn tại: biên dịch iOS BẮT BUỘC chạy trên macOS (Xcode chỉ
+# có trên macOS). Đội phát triển làm việc trên Windows, nên đây là con đường
+# chính thức để đưa app lên iPhone.
+#
+# Chạy thủ công (workflow_dispatch) thay vì tự động mỗi lần push: mỗi bản nộp
+# TestFlight tiêu một build number và làm phiền người thử nghiệm, nên việc nộp
+# phải là một quyết định có chủ ý.
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload_to_testflight:
+        description: "Nộp lên TestFlight sau khi build xong"
+        type: boolean
+        default: true
+      release_notes:
+        description: "Ghi chú cho người thử nghiệm"
+        type: string
+        default: "Ban thu nghiem noi bo"
+  # Nhánh release chỉ build để kiểm tra biên dịch, KHÔNG tự nộp.
+  push:
+    branches: ["release/**"]
+    paths: ["apps/mobile/**", ".github/workflows/mobile-ios.yml"]
+
+defaults:
+  run:
+    working-directory: apps/mobile
+
+env:
+  FLUTTER_VERSION: "3.27.4"
+  BUNDLE_ID: vn.sosaid.mobile
+
+jobs:
+  build:
+    # macos-14 chạy Apple Silicon và có Xcode 15+; bản cũ hơn thiếu
+    # `app-store-connect` export method.
+    runs-on: macos-14
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cài Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Kiểm tra secrets bắt buộc
+        # Fail sớm với thông điệp rõ ràng, thay vì để build chạy 20 phút rồi
+        # chết ở bước ký với lỗi khó hiểu của Xcode.
+        env:
+          # Đọc secret qua env thay vì nội suy thẳng vào script: giá trị chứa
+          # ký tự đặc biệt (khoá .p8 có xuống dòng) sẽ phá cú pháp shell.
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          IOS_DIST_CERT_P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+          IOS_DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          APPSTORE_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+        run: |
+          missing=""
+          # Dùng `if` thay vì `[ ... ] && ...`: GitHub chạy bash với `set -e`,
+          # nên một phép test trả về false ở dạng `&&` sẽ làm hỏng cả step.
+          for name in APPLE_TEAM_ID IOS_DIST_CERT_P12_BASE64 IOS_DIST_CERT_PASSWORD \
+                      APPSTORE_ISSUER_ID APPSTORE_KEY_ID APPSTORE_PRIVATE_KEY; do
+            if [ -z "${!name}" ]; then
+              missing="$missing $name"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "Thieu secret:$missing"
+            echo "Xem huong dan tai docs/mobile/ios-release.md"
+            exit 1
+          fi
+          echo "Da co du secret."
+
+      - name: Sinh thư mục nền tảng và áp cấu hình
+        env:
+          BUNDLE_ID: ${{ env.BUNDLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          chmod +x tool/bootstrap_platforms.sh
+          ./tool/bootstrap_platforms.sh
+
+      - name: Phân tích tĩnh
+        # Chặn bản nộp có lỗi phân tích — rẻ hơn nhiều so với phát hiện sau khi
+        # đã tiêu một vòng review của Apple.
+        run: flutter analyze --no-fatal-infos
+
+      - name: Chạy test
+        run: flutter test
+
+      - name: Nạp chứng chỉ ký
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+          p12-password: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+
+      - name: Tải provisioning profile
+        uses: apple-actions/download-provisioning-profiles@v3
+        with:
+          bundle-id: ${{ env.BUNDLE_ID }}
+          profile-type: IOS_APP_STORE
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+
+      - name: Xác định build number
+        id: build_number
+        # Dùng số thứ tự lần chạy workflow: luôn tăng và không bao giờ trùng.
+        # App Store Connect từ chối bản nộp có build number đã tồn tại.
+        run: echo "value=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build IPA
+        env:
+          # URL API production. Đặt trong secret vì nó lộ hạ tầng nội bộ.
+          API_BASE_URL: ${{ secrets.MOBILE_API_BASE_URL }}
+          EMERGENCY_PHONE: ${{ vars.EMERGENCY_PHONE || '115' }}
+        run: |
+          flutter build ipa \
+            --release \
+            --build-number=${{ steps.build_number.outputs.value }} \
+            --dart-define=API_BASE_URL="$API_BASE_URL" \
+            --dart-define=EMERGENCY_PHONE="$EMERGENCY_PHONE" \
+            --export-options-plist=ios/ExportOptions.plist
+
+      - name: Xác định đường dẫn IPA
+        id: ipa
+        # Tên file IPA do Xcode đặt theo product name và có thể đổi giữa các
+        # phiên bản Flutter (Runner.ipa / sos_aid_mobile.ipa). Dò thay vì đoán.
+        run: |
+          ipa_path="$(find build/ios/ipa -name '*.ipa' -maxdepth 1 | head -n 1)"
+          if [ -z "$ipa_path" ]; then
+            echo "Khong tim thay file .ipa nao trong build/ios/ipa"
+            ls -la build/ios/ipa || true
+            exit 1
+          fi
+          echo "Tim thay: $ipa_path"
+          echo "path=apps/mobile/$ipa_path" >> "$GITHUB_OUTPUT"
+
+      - name: Lưu IPA làm artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sos-aid-ios-build-${{ steps.build_number.outputs.value }}
+          path: apps/mobile/build/ios/ipa/*.ipa
+          retention-days: 14
+
+      - name: Nộp lên TestFlight
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_to_testflight }}
+        uses: apple-actions/upload-testflight-build@v3
+        with:
+          app-path: ${{ steps.ipa.outputs.path }}
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+
+      - name: Tóm tắt
+        if: always()
+        run: |
+          {
+            echo "## Build iOS #${{ steps.build_number.outputs.value }}"
+            echo ""
+            echo "- Bundle ID: \`${{ env.BUNDLE_ID }}\`"
+            echo "- Flutter: \`${{ env.FLUTTER_VERSION }}\`"
+            echo "- Nộp TestFlight: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_to_testflight }}"
+            echo ""
+            echo "Sau khi Apple xử lý xong (5-30 phút), bản build hiện trong"
+            echo "App Store Connect > TestFlight. Người thử nghiệm cài qua app TestFlight."
+          } >> "$GITHUB_STEP_SUMMARY"

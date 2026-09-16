@@ -70,12 +70,34 @@ Tên phòng `case-<uuid>` không chứa PII; token TTL 300s, phát riêng theo
 `audit_logs` append-only (trigger DB). Ghi cả thao tác **bị từ chối**
 (`result = 'DENIED'`, TC-025). Việc tra cứu audit cũng được audit.
 
+### Mobile – lưu trữ và quyền
+
+**Token trong secure storage.** `SecureStore` dùng Keychain (iOS,
+`first_unlock`) và EncryptedSharedPreferences (Android). Tách hẳn khỏi
+`OfflineCache` (`shared_preferences`, không mã hoá) — chỉ nội dung hướng dẫn đã
+duyệt và `deviceId` nằm ở đó. Hồ sơ sức khỏe, lịch sử vị trí và media **không
+bao giờ** được cache trên máy.
+
+**Chỉ xin 3 quyền:** camera, micro, vị trí-khi-dùng. Không xin danh bạ (người
+liên hệ do người dùng tự nhập), không xin vị trí nền, không xin ảnh. Podfile tắt
+tường minh mọi quyền khác của `permission_handler`, để một dependency mới không
+vô tình kéo chúng vào và làm Apple từ chối bản nộp (xem
+[ADR-008](../decision-log/ADR-008-mobile-platform-templates.md)).
+
+**Không tự quay số.** App dùng `tel:` để **mở** trình quay số cho người dùng tự
+bấm; Android không khai `CALL_PHONE`. Ứng dụng không bao giờ được tự gọi thay
+người dùng.
+
+**Số điện thoại chỉ ở dạng che.** Server trả `phoneMasked` (3 số cuối) kể cả cho
+chính chủ; model `EmergencyContact` cố ý **không có** trường số đầy đủ.
+
 ## Chưa triển khai – chặn Pilot có dữ liệu thật
 
 | Hạng mục | Trạng thái | Ghi chú |
 |---|---|---|
 | **OIDC/MFA cho operator/admin** (SOS-004) | ❌ | Đang dùng `POST /auth/dev/login`, chặn cứng ở production. **Đây là khoảng trống lớn nhất.** |
-| **Secure storage cho token trên mobile** | ❌ | `shared_preferences` không mã hoá; phải chuyển sang Keychain / EncryptedSharedPreferences |
+| **Xoá tài khoản trong app** | ❌ | App Store điều 5.1.1(v) **bắt buộc** với app có đăng nhập. Chưa có endpoint backend |
+| **Chính sách bảo mật công khai** | ❌ | Bắt buộc để nộp App Store; cần một URL công khai |
 | **TLS / secure headers ở ingress** | ❌ | Chưa có cấu hình ingress; dashboard đã đặt `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` |
 | **Secret manager** | ❌ | Đang đọc từ `.env`; `.env` đã nằm trong `.gitignore` |
 | **Encryption at rest** | ❌ | Phụ thuộc hạ tầng triển khai |

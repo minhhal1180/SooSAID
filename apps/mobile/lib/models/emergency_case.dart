@@ -99,7 +99,8 @@ class EmergencyCase {
       code: json['code'] as String,
       phase: CasePhase.fromCode(json['phase'] as String?),
       createdAt: json['createdAt'] as String? ?? '',
-      latestLocation: location == null ? null : LocationSample.fromJson(location),
+      latestLocation:
+          location == null ? null : LocationSample.fromJson(location),
       accessNote: json['accessNote'] as String?,
       realtimeChannel: json['realtimeChannel'] as String?,
     );

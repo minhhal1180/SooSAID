@@ -1,0 +1,183 @@
+name: CI
+
+# SOS-001: build/test tự động cho mọi thay đổi.
+#
+# Ba job tách biệt để lỗi ở một app không che mất kết quả của app khác — khi
+# dashboard hỏng, ta vẫn cần biết backend có còn xanh hay không.
+
+on:
+  push:
+    branches: ["main", "master", "feature/**", "bugfix/**"]
+  pull_request:
+    branches: ["main", "master"]
+
+jobs:
+  # ==========================================================================
+  # Backend: test trên CẢ HAI driver persistence.
+  # ==========================================================================
+  api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      # Rule 15: một tính năng chỉ Done khi đã pass trên PostgreSQL thật.
+      # Driver memory chạy nhanh nhưng không có transaction, constraint hay
+      # PostGIS — nó không thể thay thế bước này.
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: sos_aid
+          POSTGRES_USER: sos
+          POSTGRES_PASSWORD: sos_ci_only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sos -d sos_aid"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Cài dependency
+        working-directory: apps/api
+        run: npm ci
+
+      - name: Kiểm tra contract đã đồng bộ
+        # Sửa packages/api-contract mà quên chạy `npm run sync:contract` sẽ khiến
+        # backend và client hiểu khác nhau về cùng một enum. Bắt lỗi ở CI.
+        run: |
+          node scripts/sync-contract.mjs
+          if ! git diff --quiet; then
+            echo "Contract chua duoc dong bo. Chay: npm run sync:contract"
+            git diff --stat
+            exit 1
+          fi
+
+      - name: Biên dịch
+        working-directory: apps/api
+        run: npm run build
+
+      - name: Unit test
+        working-directory: apps/api
+        run: npm test
+
+      - name: Acceptance test (driver memory)
+        working-directory: apps/api
+        run: npm run test:e2e
+
+      - name: Chạy migration trên PostgreSQL thật
+        env:
+          DATABASE_URL: postgresql://sos:sos_ci_only@localhost:5432/sos_aid
+        run: node scripts/migrate.mjs --seed
+
+      - name: Acceptance test (driver postgres)
+        working-directory: apps/api
+        env:
+          NODE_ENV: test
+          PERSISTENCE_DRIVER: postgres
+          CACHE_DRIVER: redis
+          DATABASE_URL: postgresql://sos:sos_ci_only@localhost:5432/sos_aid
+          REDIS_URL: redis://localhost:6379
+          JWT_ISSUER: sos-aid-ci
+          JWT_ACCESS_SECRET: ci-access-secret-at-least-32-characters-long
+          JWT_REFRESH_SECRET: ci-refresh-secret-at-least-32-characters-diff
+        run: npm run test:e2e
+
+  # ==========================================================================
+  # Dashboard tổng đài
+  # ==========================================================================
+  operator-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Cài dependency
+        working-directory: apps/operator-web
+        run: npm install --no-audit --no-fund
+
+      - name: Kiểm tra kiểu
+        working-directory: apps/operator-web
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: apps/operator-web
+        run: npm run build
+
+  # ==========================================================================
+  # Mobile: phân tích và test trên Linux.
+  # Build iOS nằm ở workflow riêng vì cần macOS runner (tính phí theo phút).
+  # ==========================================================================
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # 3.27+ bắt buộc: code dùng `Color.withValues` (xem pubspec.yaml).
+          flutter-version: "3.27.4"
+          channel: stable
+          cache: true
+
+      - name: Cài dependency
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      - name: Kiểm tra định dạng
+        working-directory: apps/mobile
+        # Không chặn PR: khác biệt định dạng là vấn đề phong cách, sửa bằng
+        # `dart format lib test`. Chặn merge vì dấu phẩy thừa không đáng.
+        continue-on-error: true
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Phân tích tĩnh
+        working-directory: apps/mobile
+        # `--no-fatal-infos`: lỗi và cảnh báo vẫn chặn merge, còn gợi ý phong
+        # cách thì không. Ranh giới này giữ cho CI bắt đúng vấn đề thật.
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test
+        working-directory: apps/mobile
+        run: flutter test
+
+  # ==========================================================================
+  # Quét bí mật lộ trong mã nguồn (threat model: secret scanning).
+  # ==========================================================================
+  secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Gitleaks cần toàn bộ lịch sử để quét cả các commit trước.
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

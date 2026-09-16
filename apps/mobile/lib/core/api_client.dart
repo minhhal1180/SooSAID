@@ -7,7 +7,8 @@ import 'config.dart';
 
 /// Lỗi trả về từ API, đã gỡ envelope của Rule 6.2 / ADR-003.
 class ApiException implements Exception {
-  ApiException(this.code, this.message, {this.requestId = '', this.statusCode = 0});
+  ApiException(this.code, this.message,
+      {this.requestId = '', this.statusCode = 0});
 
   final String code;
   final String message;
@@ -44,7 +45,10 @@ class ApiClient {
   Future<dynamic> post(String path, {Object? body, String? idempotencyKey}) =>
       _send('POST', path, body: body, idempotencyKey: idempotencyKey);
 
-  Future<dynamic> put(String path, {Object? body}) => _send('PUT', path, body: body);
+  Future<dynamic> put(String path, {Object? body}) =>
+      _send('PUT', path, body: body);
+
+  Future<dynamic> delete(String path) => _send('DELETE', path);
 
   Future<dynamic> _send(
     String method,
@@ -76,14 +80,16 @@ class ApiClient {
     } catch (_) {
       // Không hiển thị lỗi kỹ thuật cho người đang hoảng loạn; màn hình sẽ
       // chuyển sang hướng dẫn gọi trực tiếp.
-      throw ApiException('NETWORK_UNAVAILABLE', 'Không kết nối được tới máy chủ.');
+      throw ApiException(
+          'NETWORK_UNAVAILABLE', 'Không kết nối được tới máy chủ.');
     }
 
     if (response.statusCode == 204) return null;
 
     final Map<String, dynamic> payload;
     try {
-      payload = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      payload =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
     } catch (_) {
       throw ApiException(
         'INVALID_RESPONSE',

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'core/api_client.dart';
 import 'core/offline_cache.dart';
+import 'core/secure_store.dart';
 import 'screens/auth_screen.dart';
 import 'screens/home_screen.dart';
 import 'state/app_state.dart';
@@ -15,7 +16,13 @@ Future<void> main() async {
 
   final cache = await OfflineCache.open();
   final apiClient = ApiClient();
-  final appState = AppState(apiClient: apiClient, cache: cache);
+  final appState = AppState(
+    apiClient: apiClient,
+    cache: cache,
+    // Token nằm trong Keychain/EncryptedSharedPreferences, tách khỏi cache
+    // thường — xem ghi chú trong SecureStore.
+    secureStore: SecureStore(),
+  );
 
   // Nạp phiên và nội dung cache TRƯỚC khi vẽ giao diện, để người dùng không
   // thấy màn hình đăng nhập nhấp nháy rồi mới vào màn hình chính.
@@ -42,7 +49,9 @@ class SosAidApp extends StatelessWidget {
           builder: (context, _) {
             return switch (appState.authStage) {
               AuthStage.unknown => const _SplashScreen(),
-              AuthStage.loggedOut || AuthStage.awaitingOtp => const AuthScreen(),
+              AuthStage.loggedOut ||
+              AuthStage.awaitingOtp =>
+                const AuthScreen(),
               AuthStage.loggedIn => const HomeScreen(),
             };
           },
@@ -79,7 +88,8 @@ class SosAidApp extends StatelessWidget {
 
 /// Cấp `AppState` xuống toàn bộ cây widget mà không cần thư viện ngoài.
 class AppStateScope extends InheritedNotifier<AppState> {
-  const AppStateScope({super.key, required AppState state, required super.child})
+  const AppStateScope(
+      {super.key, required AppState state, required super.child})
       : super(notifier: state);
 
   static AppState of(BuildContext context) {

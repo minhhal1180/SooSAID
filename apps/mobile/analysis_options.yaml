@@ -1,22 +1,40 @@
 include: package:flutter_lints/flutter.yaml
 
+# Giữ bộ lint ở mức flutter_lints chuẩn.
+#
+# Cố ý KHÔNG thêm các lint phong cách khắt khe (require_trailing_commas,
+# prefer_final_locals...): chúng tạo ra hàng loạt cảnh báo phong cách lấn át
+# những cảnh báo thật sự quan trọng, và giá trị của chúng thấp hơn nhiều so với
+# các quy tắc an toàn bên dưới.
+
 analyzer:
   language:
     strict-casts: true
     strict-raw-types: true
+
   errors:
-    # Thiếu kiểu trả về trong một ứng dụng xử lý dữ liệu y tế là lỗi, không phải
-    # gợi ý — nó che mất chỗ dữ liệu bị ép kiểu sai.
-    always_declare_return_types: error
+    # Ba lỗi dưới đây được nâng lên mức ERROR vì chúng gây sai lệch dữ liệu hoặc
+    # crash trong một ứng dụng xử lý tình huống cấp cứu:
+    #
+    # - dùng BuildContext sau `await` mà không kiểm tra `mounted` → crash khi
+    #   người dùng rời màn hình giữa lúc gọi API;
+    # - thiếu tham số bắt buộc → sai dữ liệu gửi lên server;
+    # - so sánh kiểu không liên quan → điều kiện luôn sai mà không ai nhận ra.
+    use_build_context_synchronously: error
     missing_required_param: error
-    missing_return: error
+    unrelated_type_equality_checks: error
+
+    # `print` không bao giờ được dùng: log của app có thể chứa vị trí, mã ca
+    # hoặc thông tin sức khoẻ (Rule 11).
+    avoid_print: error
+
+  exclude:
+    # Thư mục nền tảng do `flutter create` sinh ra, không phải code của dự án.
+    - ios/**
+    - android/**
+    - build/**
 
 linter:
   rules:
-    - always_declare_return_types
     - avoid_print
-    - prefer_const_constructors
-    - prefer_final_locals
-    - require_trailing_commas
-    - unawaited_futures
     - use_build_context_synchronously

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Tuỳ chọn export IPA để nộp App Store Connect / TestFlight.
+
+  `flutter build ipa --export-options-plist=...` dùng file này.
+  Bootstrap script thay ${APPLE_TEAM_ID} bằng giá trị thật từ biến môi trường.
+
+  `method: app-store-connect` là giá trị đúng cho Xcode 15+; bản cũ dùng
+  `app-store`. Nếu CI báo "Unsupported export method", đổi lại thành `app-store`.
+-->
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+
+	<key>teamID</key>
+	<string>${APPLE_TEAM_ID}</string>
+
+	<!--
+	  `automatic` để Xcode tự chọn provisioning profile khớp với chứng chỉ đã
+	  import. Nếu tổ chức yêu cầu profile cố định, đổi sang `manual` và bổ sung
+	  `provisioningProfiles`.
+	-->
+	<key>signingStyle</key>
+	<string>automatic</string>
+
+	<!--
+	  Bitcode đã bị Apple loại bỏ từ Xcode 14; để `true` sẽ khiến bản nộp bị từ
+	  chối.
+	-->
+	<key>uploadBitcode</key>
+	<false/>
+
+	<!--
+	  Tải symbol lên để báo cáo crash trong TestFlight đọc được tên hàm thay vì
+	  địa chỉ bộ nhớ — cần thiết khi xử lý sự cố của một ứng dụng cấp cứu.
+	-->
+	<key>uploadSymbols</key>
+	<true/>
+
+	<key>compileBitcode</key>
+	<false/>
+
+	<!--
+	  App Store tự quản lý việc chia nhỏ theo thiết bị; giữ `false` để bản nộp
+	  chứa đủ slice.
+	-->
+	<key>stripSwiftSymbols</key>
+	<true/>
+
+	<key>destination</key>
+	<string>export</string>
+</dict>
+</plist>

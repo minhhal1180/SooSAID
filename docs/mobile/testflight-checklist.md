@@ -10,19 +10,39 @@ hành App Store công khai. Phạm vi hẹp hơn nhiều, nên danh sách cũng 
 
 ---
 
-## Bước 0. Chạy thử biên dịch trước khi tiêu tiền
+## Bước 0. Chạy thử biên dịch — ✅ đã chạy và đã xanh
 
-**Làm việc này trước tiên.** Nó không cần tài khoản Apple, không cần secret nào,
-và trả lời đúng câu hỏi đắt nhất: *dự án iOS này có biên dịch được không?*
+Bước này không cần tài khoản Apple, không cần secret nào, và trả lời đúng câu
+hỏi đắt nhất: *dự án iOS này có biên dịch được không?*
 
 GitHub → **Actions** → **Mobile iOS – build & TestFlight** → **Run workflow** →
 tick **"Chỉ thử biên dịch, không ký, không nộp"** → **Run**.
 
-Bước này chạy CocoaPods, biên dịch toàn bộ plugin native (livekit, geolocator,
-secure_storage) và kiểm tra `Info.plist` trong bản dựng có đủ mô tả quyền
-camera/mic/vị trí. Xanh nghĩa là mọi thứ còn lại chỉ là thủ tục giấy tờ của Apple.
+Nó chạy CocoaPods, biên dịch toàn bộ plugin native (livekit, geolocator,
+secure_storage) và kiểm tra `Info.plist` **trong bản dựng** có đủ mô tả quyền
+camera/mic/vị trí.
 
-Repo đang để **public** nên macOS runner miễn phí — chạy bao nhiêu lần cũng được.
+Kết quả lần chạy
+[35484707633](https://github.com/minhhal1180/SooSAID/actions/runs/35484707633):
+
+```
+Building vn.sosaid.mobile for device (ios-release)...
+Xcode build done.                                           70.9s
+✓ Built build/ios/iphoneos/Runner.app (39.9MB)
+  OK  NSCameraUsageDescription
+  OK  NSMicrophoneUsageDescription
+  OK  NSLocationWhenInUseUsageDescription
+```
+
+Lần chạy đầu tiên **đỏ**, và nó bắt được đúng hai lỗi sẽ chặn bản nộp:
+
+| Lỗi | Hậu quả nếu không phát hiện |
+|---|---|
+| `connectivity_plus` gọi `NWPath.isUltraConstrained` — API chỉ có ở SDK iOS 26, runner `macos-14` chỉ có Xcode 15 | Build luôn đỏ sau khi đã mua tài khoản |
+| `flutter create` sinh bundle id `vn.sosaid.sosAidMobile` chứ không phải `vn.sosaid.mobile` | Provisioning profile không khớp, Apple từ chối bản nộp |
+
+Đó chính là lý do bước này đáng chạy trước. Repo để **public** nên macOS runner
+miễn phí — chạy bao nhiêu lần cũng không tốn gì.
 
 ---
 

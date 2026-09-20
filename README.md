@@ -1,5 +1,7 @@
 # S.O.S Aid – Nền tảng hỗ trợ sơ cấp ngoại viện
 
+[![CI](https://github.com/minhhal1180/SooSAID/actions/workflows/ci.yml/badge.svg)](https://github.com/minhhal1180/SooSAID/actions/workflows/ci.yml)
+
 Nguyên mẫu MVP/Pilot xây theo **Developer Kit v1.0** và bộ **Coding Rules** trong
 [`.claude/rules/sos-aid.md`](.claude/rules/sos-aid.md).
 
@@ -15,7 +17,7 @@ Nguyên mẫu MVP/Pilot xây theo **Developer Kit v1.0** và bộ **Coding Rules
 | Backend API | NestJS + TypeScript | ✅ Chạy, build và test được |
 | Dashboard tổng đài | Next.js 14 + TypeScript | ✅ Chạy và build được |
 | Mobile người dân | Flutter | ✅ Đủ M01–M10, phân tích và test xanh |
-| Pipeline iOS → TestFlight | GitHub Actions (macOS runner) | ✅ Sẵn sàng, chờ nạp secrets của Apple |
+| Pipeline iOS → TestFlight | GitHub Actions (macOS runner) | ✅ Đã biên dịch thật trên `macos-26`, chờ nạp secrets của Apple |
 | Crew/Responder PWA | – | ❌ Chưa làm; API `/assignments/*` đã sẵn sàng |
 | PostgreSQL + PostGIS | Migration + seed | ⚠️ SQL hoàn chỉnh, **chưa chạy thật trên máy này** (không có Docker); CI đã có job chạy trên Postgres thật |
 

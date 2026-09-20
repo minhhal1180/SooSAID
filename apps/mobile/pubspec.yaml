@@ -8,11 +8,12 @@ publish_to: "none"
 version: 0.1.0+1
 
 environment:
-  # Yêu cầu Flutter 3.27+ vì code dùng `Color.withValues` (API thay thế cho
-  # `withOpacity` đã deprecated). Dùng bản cũ hơn sẽ lỗi biên dịch với thông
-  # điệp khó hiểu, nên ràng buộc rõ ở đây để `flutter pub get` báo ngay.
-  sdk: ">=3.6.0 <4.0.0"
-  flutter: ">=3.27.0"
+  # Phải khớp với phần `sdks:` ở cuối pubspec.lock. Nếu khai báo ở đây lỏng hơn
+  # lockfile, một SDK cũ hơn vẫn qua được `flutter pub get` nhưng pub sẽ âm thầm
+  # GIẢI LẠI xuống các phiên bản cũ — và lỗi chỉ lộ ra ở bước phân tích dưới
+  # dạng "tên X không tồn tại", rất khó truy ngược. Đã xảy ra thật ở CI.
+  sdk: ">=3.10.0 <4.0.0"
+  flutter: ">=3.38.0"
 
 dependencies:
   flutter:
@@ -38,7 +39,9 @@ dependencies:
 
   # --- Video (Rule 8.1 – luôn đi qua adapter) ------------------------------
   # SDK chỉ được import trong lib/core/video/livekit_video_adapter.dart.
-  livekit_client: ^2.3.0
+  # Tối thiểu 2.13.0: `VideoViewFit` mới xuất hiện từ bản này. Để ^2.3.0 thì
+  # một lần giải lại phụ thuộc có thể rơi xuống bản không có enum đó.
+  livekit_client: ^2.13.0
 
   # --- Bản đồ (M07) --------------------------------------------------------
   # OpenStreetMap: không cần API key, phù hợp Pilot. Chỉ dùng trong

@@ -11,6 +11,14 @@ name: Mobile iOS – build & TestFlight
 on:
   workflow_dispatch:
     inputs:
+      unsigned_dry_run:
+        # Dùng trước khi mua tài khoản Apple: chứng minh dự án iOS BIÊN DỊCH
+        # được (Podfile, Info.plist, plugin native) mà không cần bất kỳ secret
+        # nào. Nếu bước này đỏ thì lỗi nằm ở mã nguồn chứ không phải ở khâu ký,
+        # và biết điều đó trước khi trả 99 USD rẻ hơn nhiều.
+        description: "Chỉ thử biên dịch, không ký, không nộp (KHÔNG cần secret Apple)"
+        type: boolean
+        default: false
       upload_to_testflight:
         description: "Nộp lên TestFlight sau khi build xong"
         type: boolean
@@ -29,7 +37,10 @@ defaults:
     working-directory: apps/mobile
 
 env:
-  FLUTTER_VERSION: "3.27.4"
+  # Khớp với `sdks:` trong apps/mobile/pubspec.lock và với CI. Ba nơi này lệch
+  # nhau một lần là đủ để bản nộp TestFlight được dựng từ cây phụ thuộc khác với
+  # cây đã kiểm thử.
+  FLUTTER_VERSION: "3.38.3"
   BUNDLE_ID: vn.sosaid.mobile
 
 jobs:
@@ -52,6 +63,10 @@ jobs:
       - name: Kiểm tra secrets bắt buộc
         # Fail sớm với thông điệp rõ ràng, thay vì để build chạy 20 phút rồi
         # chết ở bước ký với lỗi khó hiểu của Xcode.
+        #
+        # Với sự kiện `push`, `inputs.*` rỗng nên biểu thức này thành `true` —
+        # nhánh release vẫn bắt buộc có đủ secret.
+        if: ${{ !inputs.unsigned_dry_run }}
         env:
           # Đọc secret qua env thay vì nội suy thẳng vào script: giá trị chứa
           # ký tự đặc biệt (khoá .p8 có xuống dòng) sẽ phá cú pháp shell.
@@ -95,12 +110,14 @@ jobs:
         run: flutter test
 
       - name: Nạp chứng chỉ ký
+        if: ${{ !inputs.unsigned_dry_run }}
         uses: apple-actions/import-codesign-certs@v3
         with:
           p12-file-base64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
           p12-password: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
 
       - name: Tải provisioning profile
+        if: ${{ !inputs.unsigned_dry_run }}
         uses: apple-actions/download-provisioning-profiles@v3
         with:
           bundle-id: ${{ env.BUNDLE_ID }}
@@ -116,6 +133,7 @@ jobs:
         run: echo "value=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
 
       - name: Build IPA
+        if: ${{ !inputs.unsigned_dry_run }}
         env:
           # URL API production. Đặt trong secret vì nó lộ hạ tầng nội bộ.
           API_BASE_URL: ${{ secrets.MOBILE_API_BASE_URL }}
@@ -128,7 +146,40 @@ jobs:
             --dart-define=EMERGENCY_PHONE="$EMERGENCY_PHONE" \
             --export-options-plist=ios/ExportOptions.plist
 
+      - name: Thử biên dịch không ký
+        if: ${{ inputs.unsigned_dry_run }}
+        env:
+          # Chưa có secret thì dùng URL giả: bước này chỉ kiểm tra biên dịch,
+          # không chạy app, nên giá trị không ảnh hưởng kết quả.
+          API_BASE_URL: ${{ secrets.MOBILE_API_BASE_URL || 'https://example.invalid/v1' }}
+          EMERGENCY_PHONE: ${{ vars.EMERGENCY_PHONE || '115' }}
+        run: |
+          # `--no-codesign` dựng Runner.app mà bỏ qua toàn bộ khâu ký. Nó vẫn
+          # chạy CocoaPods và biên dịch mọi plugin native (livekit, geolocator,
+          # secure_storage) — tức là bắt đúng loại lỗi ta muốn bắt.
+          flutter build ios \
+            --release \
+            --no-codesign \
+            --build-number=${{ steps.build_number.outputs.value }} \
+            --dart-define=API_BASE_URL="$API_BASE_URL" \
+            --dart-define=EMERGENCY_PHONE="$EMERGENCY_PHONE"
+
+          echo ""
+          echo "==> Kiểm tra Info.plist trong bản dựng đã có quyền cần thiết"
+          app_plist="build/ios/iphoneos/Runner.app/Info.plist"
+          for key in NSCameraUsageDescription \
+                     NSMicrophoneUsageDescription \
+                     NSLocationWhenInUseUsageDescription; do
+            if /usr/libexec/PlistBuddy -c "Print :$key" "$app_plist" >/dev/null 2>&1; then
+              echo "  OK  $key"
+            else
+              echo "  THIEU  $key"
+              exit 1
+            fi
+          done
+
       - name: Xác định đường dẫn IPA
+        if: ${{ !inputs.unsigned_dry_run }}
         id: ipa
         # Tên file IPA do Xcode đặt theo product name và có thể đổi giữa các
         # phiên bản Flutter (Runner.ipa / sos_aid_mobile.ipa). Dò thay vì đoán.
@@ -143,6 +194,7 @@ jobs:
           echo "path=apps/mobile/$ipa_path" >> "$GITHUB_OUTPUT"
 
       - name: Lưu IPA làm artifact
+        if: ${{ !inputs.unsigned_dry_run }}
         uses: actions/upload-artifact@v4
         with:
           name: sos-aid-ios-build-${{ steps.build_number.outputs.value }}
@@ -150,7 +202,7 @@ jobs:
           retention-days: 14
 
       - name: Nộp lên TestFlight
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_to_testflight }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_to_testflight && !inputs.unsigned_dry_run }}
         uses: apple-actions/upload-testflight-build@v3
         with:
           app-path: ${{ steps.ipa.outputs.path }}
@@ -166,8 +218,15 @@ jobs:
             echo ""
             echo "- Bundle ID: \`${{ env.BUNDLE_ID }}\`"
             echo "- Flutter: \`${{ env.FLUTTER_VERSION }}\`"
-            echo "- Nộp TestFlight: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_to_testflight }}"
+            echo "- Chế độ: ${{ inputs.unsigned_dry_run && 'thử biên dịch không ký' || 'ký và đóng gói IPA' }}"
+            echo "- Nộp TestFlight: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_to_testflight && !inputs.unsigned_dry_run }}"
             echo ""
-            echo "Sau khi Apple xử lý xong (5-30 phút), bản build hiện trong"
-            echo "App Store Connect > TestFlight. Người thử nghiệm cài qua app TestFlight."
+            if [ "${{ inputs.unsigned_dry_run }}" = "true" ]; then
+              echo "Đây là lần chạy thử. Không có IPA và không nộp lên TestFlight."
+              echo "Kết quả xanh nghĩa là dự án iOS biên dịch được — phần còn lại"
+              echo "chỉ là nạp secret của Apple theo docs/mobile/testflight-checklist.md."
+            else
+              echo "Sau khi Apple xử lý xong (5-30 phút), bản build hiện trong"
+              echo "App Store Connect > TestFlight. Người thử nghiệm cài qua app TestFlight."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

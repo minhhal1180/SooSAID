@@ -52,11 +52,16 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: apps/api/package-lock.json
+          # Đây là npm workspaces: lockfile nằm ở GỐC repo, không nằm trong
+          # apps/api. Trỏ sai đường dẫn làm setup-node dừng với lỗi
+          # "Some specified paths were not resolved".
+          cache-dependency-path: package-lock.json
 
       - name: Cài dependency
-        working-directory: apps/api
-        run: npm ci
+        # Chạy ở gốc, không ở apps/api: chỉ gốc mới có package-lock.json, nên
+        # `npm ci` trong apps/api sẽ thất bại. npm vẫn đưa node_modules/.bin của
+        # thư mục cha vào PATH, nên các bước sau vẫn chạy được từ apps/api.
+        run: npm ci --no-audit --no-fund
 
       - name: Kiểm tra contract đã đồng bộ
         # Sửa packages/api-contract mà quên chạy `npm run sync:contract` sẽ khiến
@@ -138,14 +143,18 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          # 3.27+ bắt buộc: code dùng `Color.withValues` (xem pubspec.yaml).
-          flutter-version: "3.27.4"
+          # PHẢI khớp phần `sdks:` trong apps/mobile/pubspec.lock. Bản thấp hơn
+          # khiến pub bỏ lockfile và giải lại xuống các phiên bản cũ.
+          flutter-version: "3.38.3"
           channel: stable
           cache: true
 
       - name: Cài dependency
         working-directory: apps/mobile
-        run: flutter pub get
+        # `--enforce-lockfile`: dựng đúng các phiên bản đã khoá, hoặc dừng hẳn.
+        # Không có cờ này, pub âm thầm giải lại và CI kiểm thử một cây phụ thuộc
+        # khác với cây mà lập trình viên đã kiểm chứng.
+        run: flutter pub get --enforce-lockfile
 
       - name: Kiểm tra định dạng
         working-directory: apps/mobile
@@ -178,6 +187,13 @@ jobs:
           fetch-depth: 0
 
       - name: Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Chạy thẳng binary thay vì gitleaks-action: action đó dựng khoảng commit
+        # từ payload của sự kiện push thành `<commit đầu>^..<commit cuối>`. Ở lần
+        # push đầu tiên, "commit đầu" chính là commit gốc nên `^` không tồn tại
+        # và git dừng với "unknown revision" — CI đỏ dù không có bí mật nào.
+        #
+        # `detect` không truyền khoảng sẽ quét TOÀN BỘ lịch sử (checkout ở trên
+        # đã lấy fetch-depth: 0), nên phạm vi quét còn rộng hơn.
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.24.3 \
+            detect --source=/repo --redact --no-banner --exit-code=1

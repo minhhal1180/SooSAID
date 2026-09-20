@@ -1,0 +1,39 @@
+{
+    "name": "S.O.S Aid – Hỗ trợ sơ cấp ngoại viện",
+    "short_name": "S.O.S Aid",
+    "start_url": ".",
+    "scope": ".",
+    "display": "standalone",
+    "background_color": "#D32F2F",
+    "theme_color": "#D32F2F",
+    "description": "Kết nối người dân với tổng đài hỗ trợ và hướng dẫn sơ cứu. Không thay thế tổng đài 115 và không thay thế bác sĩ.",
+    "orientation": "portrait-primary",
+    "lang": "vi",
+    "dir": "ltr",
+    "categories": ["health", "medical", "utilities"],
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

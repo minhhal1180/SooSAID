@@ -18,6 +18,7 @@ Nguyên mẫu MVP/Pilot xây theo **Developer Kit v1.0** và bộ **Coding Rules
 | Dashboard tổng đài | Next.js 14 + TypeScript | ✅ Chạy và build được |
 | Mobile người dân | Flutter | ✅ Đủ M01–M10, phân tích và test xanh |
 | Pipeline iOS → TestFlight | GitHub Actions (macOS runner) | ✅ Đã biên dịch thật trên `macos-26`, chờ nạp secrets của Apple |
+| Bản PWA cho iPhone | Flutter web + GitHub Pages | ✅ Tự deploy, không cần tài khoản Apple |
 | Crew/Responder PWA | – | ❌ Chưa làm; API `/assignments/*` đã sẵn sàng |
 | PostgreSQL + PostGIS | Migration + seed | ⚠️ SQL hoàn chỉnh, **chưa chạy thật trên máy này** (không có Docker); CI đã có job chạy trên Postgres thật |
 
@@ -75,10 +76,20 @@ cd apps/mobile
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000/v1
 ```
 
-Lên iPhone thật: [`docs/mobile/testflight-checklist.md`](docs/mobile/testflight-checklist.md)
-(đường ngắn, chỉ TestFlight) hoặc [`docs/mobile/ios-release.md`](docs/mobile/ios-release.md)
-(bản đầy đủ, tới App Store).
-Biên dịch iOS bắt buộc chạy trên macOS, nên workflow
+### Đưa lên iPhone
+
+Ba đường, chọn theo việc có sẵn tài khoản Apple hay không:
+
+| Đường | Chi phí | Tài liệu |
+|---|---|---|
+| **PWA** – mở bằng Safari rồi "Thêm vào màn hình chính" | **0 đ** | [`pwa-ios.md`](docs/mobile/pwa-ios.md) |
+| TestFlight (bản native) | 99 USD/năm | [`testflight-checklist.md`](docs/mobile/testflight-checklist.md) |
+| App Store (bản đầy đủ) | 99 USD/năm + review | [`ios-release.md`](docs/mobile/ios-release.md) |
+
+Bản PWA đang chạy tại <https://minhhal1180.github.io/SooSAID/> — cùng mã nguồn
+Flutter, chỉ khác đích biên dịch, không có bản sao thứ hai phải bảo trì.
+
+Biên dịch iOS native bắt buộc chạy trên macOS, nên workflow
 [`mobile-ios.yml`](.github/workflows/mobile-ios.yml) dùng macOS runner để build
 IPA và nộp TestFlight — không cần Mac ở máy phát triển.
 

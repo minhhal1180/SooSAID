@@ -1,0 +1,161 @@
+name: Web PWA – build & GitHub Pages
+
+# Vì sao tồn tại: đây là con đường đưa app lên iPhone mà KHÔNG cần tài khoản
+# Apple Developer. Người dùng mở link trong Safari rồi "Thêm vào màn hình chính"
+# là có icon riêng, chạy toàn màn hình, không hết hạn.
+#
+# Xem docs/mobile/pwa-ios.md để biết cái gì chạy được và cái gì không.
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        # Để trống thì dùng biến MOBILE_API_BASE_URL của repo. Có ô này vì URL
+        # của cloudflared đổi sau MỖI lần khởi động lại — trước buổi trình diễn
+        # chỉ cần dán URL mới vào đây, không phải vào Settings.
+        description: "URL backend (kèm /v1). Bỏ trống = dùng biến của repo"
+        type: string
+        default: ""
+  push:
+    branches: ["master", "main"]
+    paths:
+      - "apps/mobile/**"
+      - "packages/api-contract/**"
+      - ".github/workflows/web-pwa.yml"
+
+# Quyền tối thiểu để deploy Pages. `id-token` cần cho bước xác thực của
+# actions/deploy-pages; thiếu nó bước deploy dừng với lỗi khó hiểu về OIDC.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Hai lần deploy chồng nhau sẽ tranh nhau cùng một môi trường. Xếp hàng thay vì
+# huỷ: bản deploy đang chạy dở vẫn nên hoàn tất để site không rơi vào trạng thái
+# nửa vời.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Khớp `sdks:` trong apps/mobile/pubspec.lock, giống hai workflow kia.
+          flutter-version: "3.38.3"
+          channel: stable
+          cache: true
+
+      - name: Cài dependency
+        working-directory: apps/mobile
+        run: flutter pub get --enforce-lockfile
+
+      - name: Phân tích tĩnh
+        working-directory: apps/mobile
+        run: flutter analyze --no-fatal-infos
+
+      - name: Chạy test
+        working-directory: apps/mobile
+        run: flutter test
+
+      - name: Xác định URL backend
+        id: api
+        env:
+          FROM_INPUT: ${{ inputs.api_base_url }}
+          FROM_VARS: ${{ vars.MOBILE_API_BASE_URL }}
+          FROM_SECRETS: ${{ secrets.MOBILE_API_BASE_URL }}
+        run: |
+          url="$FROM_INPUT"
+          if [ -z "$url" ]; then url="$FROM_VARS"; fi
+          if [ -z "$url" ]; then url="$FROM_SECRETS"; fi
+          if [ -z "$url" ]; then
+            echo "Chua co URL backend."
+            echo "Dat bien MOBILE_API_BASE_URL o Settings > Variables > Actions,"
+            echo "hoac dien o input khi bam Run workflow."
+            exit 1
+          fi
+          # KHÔNG che giá trị này trong log: với bản web, URL nằm thẳng trong
+          # file .js mà ai cũng tải được. Giả vờ nó là bí mật chỉ tạo cảm giác an
+          # toàn sai. Bí mật thật nằm ở token, không nằm ở URL.
+          echo "Backend: $url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Build web
+        working-directory: apps/mobile
+        env:
+          API_BASE_URL: ${{ steps.api.outputs.url }}
+          EMERGENCY_PHONE: ${{ vars.EMERGENCY_PHONE || '115' }}
+          # Site nằm ở https://<user>.github.io/<repo>/ chứ không ở gốc tên
+          # miền. Lấy tên repo động để đổi tên repo không làm hỏng deploy.
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          flutter build web \
+            --release \
+            --base-href="/$REPO_NAME/" \
+            --dart-define=API_BASE_URL="$API_BASE_URL" \
+            --dart-define=EMERGENCY_PHONE="$EMERGENCY_PHONE"
+
+          # GitHub Pages chạy Jekyll trừ khi có file này. Jekyll BỎ QUA mọi thư
+          # mục bắt đầu bằng dấu gạch dưới — Flutter không sinh thư mục như vậy
+          # hôm nay, nhưng chi phí phòng ngừa bằng không.
+          touch build/web/.nojekyll
+
+      - name: Kiểm tra bản dựng
+        working-directory: apps/mobile/build/web
+        # Bắt lỗi cấu hình ngay tại đây thay vì để người dùng mở link ra trang
+        # trắng. Base href sai là lỗi thầm lặng: trang tải, mọi file 404.
+        run: |
+          expected="/${{ github.event.repository.name }}/"
+          if ! grep -q "<base href=\"$expected\">" index.html; then
+            echo "Base href sai. Mong doi: $expected"
+            grep -o '<base href="[^"]*">' index.html
+            exit 1
+          fi
+          for f in main.dart.js manifest.json flutter_service_worker.js \
+                   icons/apple-touch-icon-180.png; do
+            if [ ! -f "$f" ]; then
+              echo "Thieu file: $f"
+              exit 1
+            fi
+          done
+          echo "Base href: $expected"
+          echo "Kich thuoc: $(du -sh . | cut -f1)"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/mobile/build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+      - name: Tóm tắt
+        run: |
+          {
+            echo "## Bản web đã lên sóng"
+            echo ""
+            echo "**${{ steps.deploy.outputs.page_url }}**"
+            echo ""
+            echo "Cài lên iPhone: mở link bằng **Safari** (không phải Chrome)"
+            echo "→ nút Chia sẻ → **Thêm vào màn hình chính**."
+            echo ""
+            echo "Backend phải bật và cho phép CORS từ tên miền này, nếu không"
+            echo "app mở được nhưng mọi thao tác gọi API đều lỗi."
+          } >> "$GITHUB_STEP_SUMMARY"

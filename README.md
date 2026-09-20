@@ -73,7 +73,9 @@ cd apps/mobile
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000/v1
 ```
 
-Lên iPhone thật: [`docs/mobile/ios-release.md`](docs/mobile/ios-release.md).
+Lên iPhone thật: [`docs/mobile/testflight-checklist.md`](docs/mobile/testflight-checklist.md)
+(đường ngắn, chỉ TestFlight) hoặc [`docs/mobile/ios-release.md`](docs/mobile/ios-release.md)
+(bản đầy đủ, tới App Store).
 Biên dịch iOS bắt buộc chạy trên macOS, nên workflow
 [`mobile-ios.yml`](.github/workflows/mobile-ios.yml) dùng macOS runner để build
 IPA và nộp TestFlight — không cần Mac ở máy phát triển.

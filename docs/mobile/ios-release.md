@@ -2,6 +2,11 @@
 
 Hướng dẫn từ con số 0 đến app chạy trên iPhone thật.
 
+> **Chỉ cần TestFlight?** Dùng [`testflight-checklist.md`](testflight-checklist.md)
+> — danh sách ngắn hơn hẳn, bỏ qua mọi yêu cầu chỉ phát sinh khi nộp App Store
+> công khai (chính sách bảo mật, App Privacy, xoá tài khoản, ảnh chụp màn hình).
+> Tài liệu dưới đây là bản đầy đủ, dùng khi tiến tới phát hành công khai.
+
 > **Sự thật cần biết trước:** biên dịch iOS **bắt buộc chạy trên macOS** — Xcode
 > không có bản Windows và không có cách nào lách. Máy phát triển hiện tại chạy
 > Windows, nên tài liệu này lấy **CI trên macOS runner** làm đường chính.
@@ -66,6 +71,12 @@ không phải hạn chế của dự án.
 
 Phần này cần **một máy Mac một lần duy nhất** để tạo file `.p12`, hoặc dùng
 OpenSSL trên Windows theo cách ở §2.1b.
+
+> **Có script làm hộ.** `apps/mobile/tool/make-ios-cert.sh` thực hiện toàn bộ
+> phần OpenSSL ở §2.1b, tự đối chiếu khoá với chứng chỉ, tự xác minh `.p12` mở
+> lại được, và xuất sẵn hai giá trị cho GitHub Secrets. Xem
+> [`testflight-checklist.md` §A3](testflight-checklist.md). Phần dưới đây giải
+> thích script làm gì, để người review hiểu và kiểm chứng được.
 
 ### 2.1a Có Mac — cách chuẩn
 

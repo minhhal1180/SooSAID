@@ -1,0 +1,42 @@
+# Giữ build context nhỏ và KHÔNG để bí mật lọt vào image.
+#
+# Docker gửi toàn bộ thư mục hiện tại cho daemon trước khi chạy Dockerfile.
+# Không loại trừ thì `.env` và khoá ký iOS sẽ nằm trong context — và nếu có một
+# dòng `COPY . .` nào đó về sau, chúng sẽ đi thẳng vào image phân phối.
+
+# Dependency: image tự cài lại từ lockfile
+node_modules/
+**/node_modules/
+
+# Kết quả build
+dist/
+build/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Bí mật
+.env
+.env.*
+!.env.example
+*.p12
+*.p8
+*.key
+*.mobileprovision
+.ios-signing/
+
+# Không liên quan tới backend
+apps/mobile/
+apps/operator-web/src/
+apps/operator-web/public/
+docs/
+tests/
+infra/
+
+# Git và IDE
+.git/
+.github/
+.idea/
+.vscode/
+*.log

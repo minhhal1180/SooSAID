@@ -37,6 +37,8 @@ apps/mobile/android/
 
 # --- Ký số iOS: TUYỆT ĐỐI KHÔNG COMMIT --------------------------------------
 # Ai có các file này thì ký được ứng dụng mạo danh tổ chức của bạn.
+# Thư mục làm việc của tool/make-ios-cert.sh — chứa khoá riêng và mật khẩu.
+.ios-signing/
 *.p12
 *.p8
 *.mobileprovision

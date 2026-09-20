@@ -1,0 +1,26 @@
+# Cấu hình gitleaks cho S.O.S Aid.
+#
+# Nguyên tắc: allowlist phải HẸP và có lý do viết ra. Mỗi mục ở đây là một chỗ
+# mà chuỗi trông-như-bí-mật là bắt buộc phải có để chứng minh code che nó đúng.
+# Không bao giờ allowlist cả thư mục hay cả loại file.
+
+title = "S.O.S Aid"
+
+[extend]
+# Giữ toàn bộ bộ luật mặc định của gitleaks; chỉ thêm ngoại lệ bên dưới.
+useDefault = true
+
+# `[allowlist]` số ít, KHÔNG phải `[[allowlists]]` số nhiều: gitleaks 8.24 bỏ qua
+# dạng số nhiều mà không báo lỗi, nên cấu hình trông đúng nhưng vô tác dụng.
+[allowlist]
+description = """
+safe-logger.spec.ts chứa một JWT giả để kiểm chứng rằng SafeLogger che được
+token (Rule 11). Không có chuỗi đó thì không có cách nào test được hành vi che.
+Token này không giải mã ra gì, không ký bằng khoá nào, và không mở được cái gì.
+
+Allowlist theo đường dẫn chứ không theo fingerprint: fingerprint gắn với số
+dòng, nên mỗi lần sửa file test là CI lại đỏ vì một lý do vô nghĩa.
+"""
+paths = [
+  '''apps/api/src/common/logging/safe-logger\.spec\.ts$''',
+]

@@ -194,6 +194,10 @@ jobs:
         #
         # `detect` không truyền khoảng sẽ quét TOÀN BỘ lịch sử (checkout ở trên
         # đã lấy fetch-depth: 0), nên phạm vi quét còn rộng hơn.
+        #
+        # `-v` in ra file/dòng/rule của từng phát hiện. Không có cờ này, log chỉ
+        # ghi "leaks found: 1" và không có cách nào biết nó bắt cái gì.
         run: |
           docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.24.3 \
-            detect --source=/repo --redact --no-banner --exit-code=1
+            detect --source=/repo --config=/repo/.gitleaks.toml \
+            --redact --no-banner -v --exit-code=1

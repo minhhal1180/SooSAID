@@ -10,6 +10,22 @@ hành App Store công khai. Phạm vi hẹp hơn nhiều, nên danh sách cũng 
 
 ---
 
+## Bước 0. Chạy thử biên dịch trước khi tiêu tiền
+
+**Làm việc này trước tiên.** Nó không cần tài khoản Apple, không cần secret nào,
+và trả lời đúng câu hỏi đắt nhất: *dự án iOS này có biên dịch được không?*
+
+GitHub → **Actions** → **Mobile iOS – build & TestFlight** → **Run workflow** →
+tick **"Chỉ thử biên dịch, không ký, không nộp"** → **Run**.
+
+Bước này chạy CocoaPods, biên dịch toàn bộ plugin native (livekit, geolocator,
+secure_storage) và kiểm tra `Info.plist` trong bản dựng có đủ mô tả quyền
+camera/mic/vị trí. Xanh nghĩa là mọi thứ còn lại chỉ là thủ tục giấy tờ của Apple.
+
+Repo đang để **public** nên macOS runner miễn phí — chạy bao nhiêu lần cũng được.
+
+---
+
 ## A. Những thứ CHỈ ANH cung cấp được
 
 ### A1. Tài khoản Apple Developer — **99 USD/năm**
@@ -85,12 +101,12 @@ docker build -f apps/api/Dockerfile -t sos-aid-api .
 sinh secret JWT mới — cấu hình `memory` bị backend **từ chối khởi động** ở
 production.
 
-### A5. Nơi đặt repo
+### A5. Nơi đặt repo — ✅ đã xong
 
-Repo hiện chưa có remote. Cần một repo GitHub để chạy workflow.
+<https://github.com/minhhal1180/SooSAID> (public, nhánh `master`).
 
-> Repo **private**: macOS runner tính phí ~0,08 USD/phút, mỗi lần build ~15 phút
-> ≈ **1,2 USD**. Repo **public**: miễn phí, nhưng mã nguồn công khai.
+> Public nên macOS runner **miễn phí**. Nếu sau này chuyển sang private, mỗi lần
+> build ~15 phút × 0,08 USD/phút ≈ **1,2 USD**.
 
 ---
 
@@ -160,10 +176,12 @@ Vì vậy bản hiện tại **đủ điều kiện lên TestFlight Internal nga
 
 | Việc | Thời gian |
 |---|---|
+| Bước 0 — chạy thử biên dịch | ~20 phút, máy chạy, anh không phải làm gì |
+| A5 — tạo repo | ✅ đã xong |
 | Đăng ký Apple Developer | 24–48 giờ chờ duyệt |
 | A2 + A3 (thao tác web + chứng chỉ) | ~30 phút |
 | A4 backend công khai (cloudflared) | ~5 phút |
-| A5 + B (tạo repo, nạp secrets) | ~15 phút |
+| B (nạp 7 secrets) | ~10 phút |
 | C (build + Apple xử lý) | ~30–50 phút |
 
-**Tổng thời gian thao tác: khoảng 1,5 giờ.** Phần còn lại là chờ Apple.
+**Tổng thời gian thao tác: khoảng 45 phút.** Phần còn lại là chờ Apple.

@@ -45,6 +45,32 @@ echo "==> Áp cấu hình iOS"
 cp "$TEMPLATE_DIR/ios/Info.plist" ios/Runner/Info.plist
 cp "$TEMPLATE_DIR/ios/Podfile" ios/Podfile
 
+# `flutter create --org vn.sosaid --project-name sos_aid_mobile` KHÔNG sinh
+# bundle id `vn.sosaid.mobile`: nó camelCase tên project thành
+# `vn.sosaid.sosAidMobile`. Bundle id lệch với App ID đã đăng ký thì
+# provisioning profile không khớp và bản nộp TestFlight bị từ chối — lỗi này đã
+# xảy ra thật ở lần chạy thử đầu tiên trên macOS runner. Đặt lại tường minh.
+#
+# Hai lượt sed: lượt đầu cho target RunnerTests (phải giữ hậu tố .RunnerTests),
+# lượt sau cho mọi target còn lại, loại trừ dòng đã xử lý.
+PBXPROJ="ios/Runner.xcodeproj/project.pbxproj"
+sed -i.bak -E \
+  "s/PRODUCT_BUNDLE_IDENTIFIER = [^;]*\.RunnerTests;/PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID}.RunnerTests;/g" \
+  "$PBXPROJ"
+sed -i.bak -E \
+  "/RunnerTests/! s/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};/g" \
+  "$PBXPROJ"
+rm -f "$PBXPROJ.bak"
+
+# Dừng ngay nếu sed không ăn: build sai bundle id chỉ lộ ra sau ~15 phút, ở bước
+# ký, với thông điệp của Xcode không hề nhắc tới bundle id.
+if ! grep -q "PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};" "$PBXPROJ"; then
+  echo "LỖI: không đặt được bundle id thành $BUNDLE_ID. Giá trị hiện có:"
+  grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*' "$PBXPROJ" | sort -u
+  exit 1
+fi
+echo "    Bundle id: $(grep -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*' "$PBXPROJ" | sort -u | tr '\n' ' ')"
+
 # ExportOptions.plist chứa Team ID nên được sinh ra (không commit giá trị thật).
 if [ -n "$APPLE_TEAM_ID" ]; then
   sed "s/\${APPLE_TEAM_ID}/$APPLE_TEAM_ID/g" \
@@ -66,8 +92,12 @@ done
 
 if [ -n "$GRADLE_FILE" ]; then
   sed -i.bak -E 's/minSdk(Version)? *=? *(flutter\.minSdkVersion|[0-9]+)/minSdk = 23/' "$GRADLE_FILE"
+  # Cùng lý do như bundle id iOS: flutter create đặt applicationId thành
+  # vn.sosaid.sos_aid_mobile, không phải giá trị ta muốn công bố.
+  # (`namespace` giữ nguyên — đổi nó đòi phải di chuyển cả cây thư mục Kotlin.)
+  sed -i.bak -E "s/applicationId( *=)? *\"[^\"]*\"/applicationId = \"$BUNDLE_ID\"/" "$GRADLE_FILE"
   rm -f "$GRADLE_FILE.bak"
-  echo "    Đặt minSdk = 23 trong $GRADLE_FILE"
+  echo "    Đặt minSdk = 23 và applicationId = $BUNDLE_ID trong $GRADLE_FILE"
 fi
 
 echo "==> Cài dependency"

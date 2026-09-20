@@ -45,9 +45,15 @@ env:
 
 jobs:
   build:
-    # macos-14 chạy Apple Silicon và có Xcode 15+; bản cũ hơn thiếu
-    # `app-store-connect` export method.
-    runs-on: macos-14
+    # Phải là macos-26 (Xcode 26 / SDK iOS 26), KHÔNG phải macos-14.
+    #
+    # `connectivity_plus` (phụ thuộc gián tiếp của livekit_client) gọi
+    # `NWPath.isUltraConstrained`, một API chỉ có từ SDK iOS 26. Trên macos-14
+    # (Xcode 15) build dừng với:
+    #   Swift Compiler Error: Value of type 'NWPath' has no member 'isUltraConstrained'
+    # Lỗi nằm trong mã của thư viện, không phải mã của dự án, nên không sửa được
+    # bằng cách đổi code — chỉ có thể nâng SDK.
+    runs-on: macos-26
     timeout-minutes: 45
 
     steps:

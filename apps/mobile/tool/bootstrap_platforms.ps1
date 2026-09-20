@@ -30,6 +30,27 @@ Write-Output '==> Ap cau hinh iOS'
 Copy-Item (Join-Path $templateDir 'ios\Info.plist') 'ios\Runner\Info.plist' -Force
 Copy-Item (Join-Path $templateDir 'ios\Podfile') 'ios\Podfile' -Force
 
+# `flutter create --org vn.sosaid --project-name sos_aid_mobile` KHONG sinh
+# bundle id `vn.sosaid.mobile`: no camelCase ten project thanh
+# `vn.sosaid.sosAidMobile`. Bundle id lech voi App ID da dang ky thi provisioning
+# profile khong khop va ban nop TestFlight bi tu choi. Da gap that o CI.
+$pbxproj = 'ios\Runner.xcodeproj\project.pbxproj'
+$pbx = Get-Content $pbxproj -Raw
+# Luot 1: target RunnerTests, phai giu hau to .RunnerTests.
+$pbx = [regex]::Replace($pbx,
+    'PRODUCT_BUNDLE_IDENTIFIER = [^;]*\.RunnerTests;',
+    "PRODUCT_BUNDLE_IDENTIFIER = $bundleId.RunnerTests;")
+# Luot 2: moi target con lai. Lookahead phu dinh bo qua cac dong luot 1 vua sua.
+$pbx = [regex]::Replace($pbx,
+    'PRODUCT_BUNDLE_IDENTIFIER = (?!' + [regex]::Escape($bundleId) + ')[^;]*;',
+    "PRODUCT_BUNDLE_IDENTIFIER = $bundleId;")
+Set-Content $pbxproj $pbx -Encoding utf8
+
+if ($pbx -notmatch [regex]::Escape("PRODUCT_BUNDLE_IDENTIFIER = $bundleId;")) {
+    throw "Khong dat duoc bundle id thanh $bundleId trong $pbxproj"
+}
+Write-Output "    Bundle id: $bundleId"
+
 if ($env:APPLE_TEAM_ID) {
     $exportOptions = Get-Content (Join-Path $templateDir 'ios\ExportOptions.plist') -Raw
     $exportOptions = $exportOptions.Replace('${APPLE_TEAM_ID}', $env:APPLE_TEAM_ID)
@@ -52,8 +73,11 @@ foreach ($candidate in @('android\app\build.gradle.kts', 'android\app\build.grad
 if ($gradleFile) {
     $gradle = Get-Content $gradleFile -Raw
     $gradle = [regex]::Replace($gradle, 'minSdk(Version)?\s*=?\s*(flutter\.minSdkVersion|\d+)', 'minSdk = 23')
+    # Cung ly do nhu bundle id iOS. (`namespace` giu nguyen - doi no doi phai di
+    # chuyen ca cay thu muc Kotlin.)
+    $gradle = [regex]::Replace($gradle, 'applicationId( *=)? *"[^"]*"', "applicationId = `"$bundleId`"")
     Set-Content $gradleFile $gradle -Encoding utf8
-    Write-Output "    Dat minSdk = 23 trong $gradleFile"
+    Write-Output "    Dat minSdk = 23 va applicationId = $bundleId trong $gradleFile"
 }
 
 Write-Output '==> Cai dependency'

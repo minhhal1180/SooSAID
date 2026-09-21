@@ -55,6 +55,8 @@ paths:
         Luôn trả 202 bất kể số điện thoại có tồn tại hay không, để endpoint này
         không trở thành công cụ dò tài khoản đã đăng ký.
         Có rate limit theo `RATE_LIMIT_OTP_PER_HOUR` (TC-026).
+        Riêng môi trường diễn tập có thể trả `demoOtp` cho đúng số đã cấu hình để
+        PWA tự điền; cấu hình này bị cấm ở production.
       requestBody:
         required: true
         content:
@@ -78,6 +80,14 @@ paths:
                         type: object
                         properties:
                           accepted: { type: boolean }
+                          delivery:
+                            type: string
+                            enum: [mock, in_app_demo]
+                          demoOtp:
+                            type: string
+                            minLength: 6
+                            maxLength: 6
+                            description: Chỉ có cho đúng số demo ở môi trường diễn tập.
         '429': { $ref: '#/components/responses/RateLimited' }
 
   /auth/otp/verify:

@@ -25,8 +25,10 @@ flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000/v1
 flutter run --dart-define=API_BASE_URL=http://<IP-LAN>:3000/v1
 ```
 
-Đăng nhập bằng số mô phỏng `+84900000001`. Mã OTP hiện trong log backend khi
-`AUTH_OTP_DEV_ECHO=true` (mặc định bật ở `.env` phát triển).
+Đăng nhập bằng số mô phỏng `+84900000001`. Khi backend bật
+`AUTH_DEMO_OTP_AUTOFILL=true`, mã OTP ngẫu nhiên được trả về **chỉ cho đúng số
+demo**, hiện thông báo và tự điền trong ứng dụng. Với các số khác, mã chỉ hiện
+trong log backend khi `AUTH_OTP_DEV_ECHO=true` (chỉ dùng trên máy cá nhân).
 
 **Lên iPhone thật:** xem [`docs/mobile/ios-release.md`](../../docs/mobile/ios-release.md).
 

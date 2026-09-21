@@ -37,6 +37,12 @@ export interface LoginResult {
   user: { id: string; roles: string[] };
 }
 
+export interface RequestOtpResult {
+  /** Chỉ tồn tại cho đúng số demo khi cờ dev được bật. */
+  demoOtp?: string;
+  delivery: 'mock' | 'in_app_demo';
+}
+
 @Injectable()
 export class AuthService {
   private readonly logger = new SafeLogger().setContext('auth');
@@ -56,7 +62,7 @@ export class AuthService {
    * Gửi OTP. Luôn trả 202 bất kể số điện thoại có tồn tại hay không — phản hồi
    * khác nhau sẽ biến endpoint này thành công cụ dò xem ai đã đăng ký.
    */
-  async requestOtp(phone: string): Promise<void> {
+  async requestOtp(phone: string): Promise<RequestOtpResult> {
     // Fail-closed: cache chết thì từ chối, không để cache chết thành cách spam
     // nhà cung cấp SMS (TC-026).
     await this.rateLimiter.consume(
@@ -66,10 +72,15 @@ export class AuthService {
 
     const otp = await this.otpService.issue(phone);
 
+    const isInAppDemo =
+      this.config.auth.demoOtpAutofill && phone === this.config.auth.demoPhone;
+
     // Pilot chạy SMS_PROVIDER=mock. Adapter SMS thật được cắm ở đây khi đơn vị
     // triển khai có nhà cung cấp và cơ chế đồng ý phù hợp (TDD §11.3).
-    this.logger.log('otp_requested', { event: 'sms_dispatch', provider: 'mock' });
-    void otp;
+    this.logger.log('otp_requested', {
+      event: isInAppDemo ? 'demo_in_app_delivery' : 'sms_dispatch',
+      provider: isInAppDemo ? 'in_app_demo' : 'mock',
+    });
 
     await this.auditLog.record({
       action: AuditAction.AUTH_OTP_REQUESTED,
@@ -77,6 +88,10 @@ export class AuthService {
       // Chỉ lưu dạng che – audit log có thể được export (Rule 11).
       metadata: { phoneMasked: maskPhone(phone) },
     });
+
+    return isInAppDemo
+      ? { delivery: 'in_app_demo', demoOtp: otp }
+      : { delivery: 'mock' };
   }
 
   /** Xác thực OTP và cấp cặp token. Tạo tài khoản người dân nếu lần đầu. */

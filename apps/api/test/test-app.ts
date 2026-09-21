@@ -24,6 +24,8 @@ export function configureTestEnvironment(): void {
   process.env.JWT_ACCESS_SECRET = 'test-access-secret-at-least-32-characters';
   process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-at-least-32-characters';
   process.env.AUTH_OTP_DEV_ECHO = 'false';
+  process.env.AUTH_DEMO_OTP_AUTOFILL = 'true';
+  process.env.AUTH_DEMO_PHONE = '+84900000001';
   process.env.VIDEO_PROVIDER = 'mock';
   process.env.RECORDING_ENABLED = 'false';
   process.env.GUIDANCE_ALLOW_DRILL_CONTENT = 'true';

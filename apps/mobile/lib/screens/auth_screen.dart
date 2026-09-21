@@ -36,6 +36,23 @@ class _AuthScreenState extends State<AuthScreen> {
     if (mounted) setState(() => _busy = false);
   }
 
+  Future<void> _requestOtp(AppState state, String phone) async {
+    await _run(() => state.requestOtp(phone));
+    if (!mounted || state.authError != null || state.demoOtp == null) return;
+
+    _otpController.value = TextEditingValue(
+      text: state.demoOtp!,
+      selection: TextSelection.collapsed(offset: state.demoOtp!.length),
+    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Mã diễn tập đã được nhận và điền tự động.'),
+        ),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = AppStateScope.of(context);
@@ -122,20 +139,20 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                       onSubmitted: _busy
                           ? null
-                          : (_) => _run(
-                              () => state.requestOtp(_phoneController.text),
-                            ),
+                          : (_) => _requestOtp(state, _phoneController.text),
                     ),
                     const SizedBox(height: 14),
                     FilledButton(
                       onPressed: _busy
                           ? null
-                          : () => _run(
-                              () => state.requestOtp(_phoneController.text),
-                            ),
+                          : () => _requestOtp(state, _phoneController.text),
                       child: Text(_busy ? 'Đang gửi…' : 'Nhận mã xác thực'),
                     ),
                   ] else ...<Widget>[
+                    if (state.demoOtp != null) ...<Widget>[
+                      const _DemoOtpNotice(),
+                      const SizedBox(height: 14),
+                    ],
                     TextField(
                       controller: _otpController,
                       keyboardType: TextInputType.number,
@@ -163,9 +180,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     TextButton(
                       onPressed: _busy
                           ? null
-                          : () => _run(
-                              () => state.requestOtp(state.pendingPhone),
-                            ),
+                          : () => _requestOtp(state, state.pendingPhone),
                       child: const Text('Gửi lại mã'),
                     ),
                   ],
@@ -188,6 +203,52 @@ class _AuthScreenState extends State<AuthScreen> {
     return digits.length < 4
         ? '***'
         : '***${digits.substring(digits.length - 3)}';
+  }
+}
+
+class _DemoOtpNotice extends StatelessWidget {
+  const _DemoOtpNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: scheme.primaryContainer,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: scheme.primary.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Icon(Icons.verified_outlined, color: scheme.onPrimaryContainer),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Mã diễn tập đã được điền tự động',
+                    style: TextStyle(
+                      color: scheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Không có SMS thật được gửi. Hãy kiểm tra ô mã rồi bấm Xác nhận.',
+                    style: TextStyle(color: scheme.onPrimaryContainer),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

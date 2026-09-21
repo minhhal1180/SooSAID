@@ -51,6 +51,12 @@ export interface AppConfig {
     readonly refreshTtlSeconds: number;
     readonly otpDevEcho: boolean;
     /**
+     * Trả OTP về đúng tài khoản demo để PWA tự điền. Cờ này chỉ phục vụ trình
+     * diễn và bị chặn cứng ở production; mọi số khác vẫn nhận phản hồi chung.
+     */
+    readonly demoOtpAutofill: boolean;
+    readonly demoPhone: string;
+    /**
      * Cho phép đăng nhập tài khoản nghiệp vụ bằng endpoint dev (không mật khẩu).
      * CHỈ để chạy dashboard trong môi trường phát triển/diễn tập, trong khi cổng
      * OIDC/MFA của SOS-004 chưa được dựng. Bị chặn cứng ở production.
@@ -193,6 +199,19 @@ export function buildAppConfig(): AppConfig {
     throw new ConfigError('AUTH_OTP_DEV_ECHO=true bị cấm ở production (Rule 11 – Logging)');
   }
 
+  const demoOtpAutofill = readBool('AUTH_DEMO_OTP_AUTOFILL', false);
+  const demoPhone = (process.env.AUTH_DEMO_PHONE ?? '').trim();
+  if (isProduction && demoOtpAutofill) {
+    throw new ConfigError(
+      'AUTH_DEMO_OTP_AUTOFILL=true bị cấm ở production: OTP không được trả về client.',
+    );
+  }
+  if (demoOtpAutofill && !/^\+\d{8,15}$/.test(demoPhone)) {
+    throw new ConfigError(
+      'AUTH_DEMO_PHONE phải là số E.164 (ví dụ +84900000001) khi bật tự điền OTP demo.',
+    );
+  }
+
   const devOperatorLogin = readBool('AUTH_DEV_OPERATOR_LOGIN', false);
   if (isProduction && devOperatorLogin) {
     throw new ConfigError(
@@ -244,6 +263,8 @@ export function buildAppConfig(): AppConfig {
       accessTtlSeconds: readInt('JWT_ACCESS_TTL_SECONDS', 900),
       refreshTtlSeconds: readInt('JWT_REFRESH_TTL_SECONDS', 2_592_000),
       otpDevEcho,
+      demoOtpAutofill,
+      demoPhone,
       devOperatorLogin,
     },
 

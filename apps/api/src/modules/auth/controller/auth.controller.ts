@@ -22,8 +22,8 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.ACCEPTED)
   async requestOtp(@Body() body: RequestOtpDto) {
-    await this.authService.requestOtp(body.phone);
-    return { accepted: true };
+    const result = await this.authService.requestOtp(body.phone);
+    return { accepted: true, ...result };
   }
 
   @Post('otp/verify')

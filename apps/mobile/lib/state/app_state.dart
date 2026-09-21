@@ -78,6 +78,8 @@ class AppState extends ChangeNotifier {
   AuthStage authStage = AuthStage.unknown;
   String pendingPhone = '';
   String? authError;
+  /// Chỉ có ở môi trường diễn tập và đúng số demo; không lưu xuống thiết bị.
+  String? demoOtp;
 
   // --- Ca đang hoạt động ----------------------------------------------------
   EmergencyCase? activeCase;
@@ -161,12 +163,16 @@ class AppState extends ChangeNotifier {
 
   Future<void> requestOtp(String phone) async {
     authError = null;
+    demoOtp = null;
     pendingPhone = phone.trim();
     notifyListeners();
 
     try {
-      await _api.post('/auth/otp/request',
-          body: <String, dynamic>{'phone': pendingPhone});
+      final data = await _api.post(
+        '/auth/otp/request',
+        body: <String, dynamic>{'phone': pendingPhone},
+      ) as Map<String, dynamic>;
+      demoOtp = data['demoOtp'] as String?;
       authStage = AuthStage.awaitingOtp;
     } on ApiException catch (error) {
       authError = error.message;
@@ -189,6 +195,7 @@ class AppState extends ChangeNotifier {
         refreshToken: data['refreshToken'] as String,
       );
       _api.setAccessToken(data['accessToken'] as String);
+      demoOtp = null;
       authStage = AuthStage.loggedIn;
 
       await _registerDevice();
@@ -209,6 +216,7 @@ class AppState extends ChangeNotifier {
     _api.setAccessToken(null);
 
     activeCase = null;
+    demoOtp = null;
     userProfile = null;
     emergencyProfile = null;
     emergencyContacts = const <EmergencyContact>[];

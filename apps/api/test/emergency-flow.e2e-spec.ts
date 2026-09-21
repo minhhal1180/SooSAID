@@ -643,7 +643,7 @@ describe('Luồng ca cấp cứu (acceptance)', () => {
     it('yêu cầu OTP luôn trả 202, không tiết lộ số nào đã đăng ký', async () => {
       const known = await request(app.getHttpServer())
         .post('/v1/auth/otp/request')
-        .send({ phone: '+84900000001' })
+        .send({ phone: '+84900000002' })
         .expect(202);
 
       const unknown = await request(app.getHttpServer())
@@ -652,6 +652,26 @@ describe('Luồng ca cấp cứu (acceptance)', () => {
         .expect(202);
 
       expect(known.body.data).toEqual(unknown.body.data);
+    });
+
+    it('chỉ trả và chấp nhận OTP tự điền cho đúng số diễn tập', async () => {
+      const requested = await request(app.getHttpServer())
+        .post('/v1/auth/otp/request')
+        .send({ phone: '+84900000001' })
+        .expect(202);
+
+      expect(requested.body.data).toMatchObject({
+        accepted: true,
+        delivery: 'in_app_demo',
+      });
+      expect(requested.body.data.demoOtp).toMatch(/^\d{6}$/);
+
+      const verified = await request(app.getHttpServer())
+        .post('/v1/auth/otp/verify')
+        .send({ phone: '+84900000001', otp: requested.body.data.demoOtp })
+        .expect(200);
+
+      expect(verified.body.data.user.roles).toContain(UserRole.CITIZEN);
     });
 
     it('TC-026: vượt ngưỡng yêu cầu OTP thì bị chặn', async () => {

@@ -12,6 +12,7 @@ Mọi quyết định kiến trúc/nghiệp vụ có ảnh hưởng lâu dài đ
 | [ADR-006](ADR-006-video-provider-adapter.md) | Video qua `VideoProvider` port; driver `mock` mặc định trong Pilot | Accepted | 2026-09-16 |
 | [ADR-007](ADR-007-cache-driver.md) | Cache port + driver `redis`/`memory`; hướng fail bất đối xứng của rate limit | Accepted | 2026-09-16 |
 | [ADR-008](ADR-008-mobile-platform-templates.md) | Không commit `ios/`, `android/`; sinh lại từ template trong `tool/platform/` | Accepted | 2026-09-16 |
+| [ADR-009](ADR-009-bundled-offline-first-aid-video.md) | Đóng gói video sơ cứu trong app và precache trong PWA | Accepted | 2026-09-21 |
 
 ## Open Decisions (chưa chốt — chặn Pilot thật)
 

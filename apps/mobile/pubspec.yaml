@@ -43,6 +43,10 @@ dependencies:
   # một lần giải lại phụ thuộc có thể rơi xuống bản không có enum đó.
   livekit_client: ^2.13.0
 
+  # Video sơ cứu đóng gói sẵn, phát trực tiếp từ Flutter assets nên không cần
+  # mạng. 2.11.1 là bản mới nhất tương thích Dart 3.10 của dự án.
+  video_player: ^2.11.1
+
   # --- Bản đồ (M07) --------------------------------------------------------
   # OpenStreetMap: không cần API key, phù hợp Pilot. Chỉ dùng trong
   # lib/core/map/osm_map_adapter.dart để đổi nhà cung cấp không phải sửa UI.
@@ -59,3 +63,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    # MP4 H.264 dung lượng nhỏ, nằm trong binary/native app và được PWA chủ
+    # động precache ở lần tải đầu tiên.
+    - assets/offline_videos/call_115.mp4
+    - assets/offline_videos/scene_safety.mp4
+    - assets/offline_videos/observe_signs.mp4
+    - assets/offline_videos/wait_for_support.mp4

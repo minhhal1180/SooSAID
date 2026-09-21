@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../core/config.dart';
+import '../core/emergency_dialer.dart';
 import '../main.dart';
 import '../models/guidance.dart';
+import '../models/offline_video_guide.dart';
+import 'offline_video_player_screen.dart';
 
 /// M06 + M09 – Hướng dẫn sơ cấp cứu, hoạt động cả khi mất mạng (SOS-051, TC-022).
 ///
@@ -19,18 +22,56 @@ class GuidanceScreen extends StatelessWidget {
     final guides = state.guidance;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Hướng dẫn sơ cấp cứu')),
+      appBar: AppBar(title: const Text('Sơ cứu offline')),
       body: SafeArea(
-        child: guides.isEmpty
-            ? const _EmptyGuidance()
-            : ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: guides.length + 1,
-                itemBuilder: (context, index) {
-                  if (index == 0) return const _CallFirstBanner();
-                  return _GuidanceCard(guidance: guides[index - 1]);
-                },
-              ),
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+              children: <Widget>[
+                const _CallFirstBanner(),
+                const _OfflineLibraryHeader(),
+                const SizedBox(height: 12),
+                ...bundledOfflineVideoGuides.map(
+                  (guide) => _OfflineVideoCard(guide: guide),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        'Hướng dẫn bằng chữ',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                    if (state.guidanceSyncedAt != null)
+                      Tooltip(
+                        message: 'Đã lưu trên máy',
+                        child: Icon(
+                          Icons.cloud_done_outlined,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  guides.isEmpty
+                      ? 'Chưa tải được nội dung từ máy chủ. Các video phía trên vẫn dùng được.'
+                      : 'Nội dung đã tải được lưu trên máy để đọc khi mất mạng.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                if (guides.isEmpty)
+                  const _EmptyGuidance()
+                else
+                  ...guides.map((guide) => _GuidanceCard(guidance: guide)),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -46,26 +87,176 @@ class _CallFirstBanner extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: scheme.errorContainer,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Icon(Icons.phone_in_talk, color: scheme.onErrorContainer),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Việc đầu tiên: gọi ${AppConfig.emergencyPhoneNumber}. '
-              'Các hướng dẫn dưới đây chỉ hỗ trợ trong lúc chờ.',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: scheme.onErrorContainer,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Icon(Icons.phone_in_talk, color: scheme.onErrorContainer),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Nếu có thể, hãy gọi ${AppConfig.emergencyPhoneNumber} trước. '
+                  'Các video chỉ hỗ trợ bước đầu trong lúc chờ.',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: scheme.onErrorContainer,
+                  ),
+                ),
               ),
-            ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: EmergencyDialer.callEmergencyNumber,
+            icon: const Icon(Icons.call),
+            label: const Text('Gọi ${AppConfig.emergencyPhoneNumber}'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _OfflineLibraryHeader extends StatelessWidget {
+  const _OfflineLibraryHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                'Video có sẵn trên máy',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Mở được ngay cả khi không có sóng điện thoại.',
+                style: TextStyle(color: scheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(
+                Icons.download_done,
+                size: 17,
+                color: scheme.onPrimaryContainer,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                'OFFLINE',
+                style: TextStyle(
+                  color: scheme.onPrimaryContainer,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: .4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OfflineVideoCard extends StatelessWidget {
+  const _OfflineVideoCard({required this.guide});
+
+  final OfflineVideoGuide guide;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Semantics(
+      button: true,
+      label:
+          'Mở video ${guide.title}, dài ${guide.durationLabel}, có sẵn offline',
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        margin: const EdgeInsets.only(bottom: 12),
+        child: InkWell(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => OfflineVideoPlayerScreen(guide: guide),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: scheme.errorContainer,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.play_circle_fill,
+                    size: 38,
+                    color: scheme.error,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        guide.title,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        guide.summary,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: scheme.onSurfaceVariant),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${guide.durationLabel} · Không cần mạng',
+                        style: TextStyle(
+                          color: scheme.primary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -127,8 +318,11 @@ class _GuidanceCard extends StatelessWidget {
                   const SizedBox(width: 12),
                   // Chữ lớn: người dùng cầm điện thoại cách xa hoặc tay đang bẩn.
                   Expanded(
-                      child: Text(step.text,
-                          style: const TextStyle(fontSize: 17))),
+                    child: Text(
+                      step.text,
+                      style: const TextStyle(fontSize: 17),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -156,25 +350,27 @@ class _EmptyGuidance extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Icon(Icons.cloud_off, size: 48),
-          SizedBox(height: 12),
-          Text(
-            'Chưa có nội dung hướng dẫn nào được tải về máy.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 17),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Hãy kết nối mạng một lần để tải nội dung, sau đó vẫn xem được khi mất sóng. '
-            'Trong lúc này, gọi ${AppConfig.emergencyPhoneNumber} để được hướng dẫn trực tiếp.',
-            textAlign: TextAlign.center,
-          ),
-        ],
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(Icons.cloud_off_outlined, size: 40),
+            SizedBox(height: 12),
+            Text(
+              'Chưa có hướng dẫn bằng chữ từ máy chủ.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Khi có mạng, nội dung đã duyệt sẽ tự tải và được lưu lại. '
+              'Bộ video offline phía trên vẫn luôn mở được.',
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -89,7 +89,8 @@ trước khi trình diễn.
 | Vị trí GPS | ✅ khi app đang mở (Safari hỏi quyền) |
 | Camera + micro cho video call | ✅ từ iOS 14.3 trở lên |
 | Bản đồ OpenStreetMap | ✅ |
-| Xem offline nội dung đã tải | ✅ nhờ service worker |
+| 4 video sơ cứu + transcript đóng gói sẵn | ✅ precache ngay khi cài PWA |
+| Xem offline nội dung chữ đã tải từ API | ✅ nhờ service worker + cache cục bộ |
 | Vị trí chạy nền | ❌ nền tảng không cho |
 | Thông báo đẩy | ❌ chưa làm (iOS 16.4+ có Web Push nếu bổ sung sau) |
 | Lưu token trong Keychain | ⚠️ xem mục 4 |

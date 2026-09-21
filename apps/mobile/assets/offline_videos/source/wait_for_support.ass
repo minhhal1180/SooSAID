@@ -1,0 +1,16 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 540
+PlayResY: 960
+
+[V4+ Styles]
+Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
+Style: Main,Arial,38,&H00FFFFFF,&H00FFFFFF,&H00281010,&H00000000,-1,0,0,0,100,100,0,0,1,2,0,5,50,50,80,1
+Style: Footer,Arial,18,&H00E8DCDC,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,2,25,25,30,1
+
+[Events]
+Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
+Dialogue: 0,0:00:00.00,0:00:04.00,Main,,0,0,0,,{\fs30\c&H90C8FF&}TRONG KHI CHỜ\N{\fs42}GIỮ LIÊN LẠC\N{\fs24}báo ngay khi tình trạng thay đổi
+Dialogue: 0,0:00:04.00,0:00:08.00,Main,,0,0,0,,{\fs30\c&H90C8FF&}KHI ĐƯỢC YÊU CẦU\N{\fs39}HƯỚNG CAMERA\N{\fs24}về phía người bị nạn
+Dialogue: 0,0:00:08.00,0:00:12.00,Main,,0,0,0,,{\fs30\c&H90C8FF&}CHUẨN BỊ ĐÓN HỖ TRỢ\N{\fs39}CỬ NGƯỜI CHỈ LỐI\N{\fs24}mở cổng và dọn lối tiếp cận
+Dialogue: 0,0:00:00.00,0:00:12.00,Footer,,0,0,0,,BẢN DEMO • CHƯA PHÊ DUYỆT Y KHOA

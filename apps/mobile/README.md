@@ -2,10 +2,9 @@
 
 Ứng dụng dành cho **người dân** trong tình huống cấp cứu ngoài bệnh viện.
 
-> **Chưa biên dịch trên máy này.** Máy phát triển hiện tại (Windows) không có
-> Flutter SDK, nên toàn bộ mã nguồn **chưa qua `flutter analyze` / `flutter test`**.
-> Chạy hai lệnh đó trước khi merge. CI ([`ci.yml`](../../.github/workflows/ci.yml))
-> cũng chặn PR nếu chúng không xanh.
+Đã kiểm tra bằng Flutter 3.38.3: `flutter analyze`, `flutter test` và
+`flutter build web --release` đều xanh. CI ([`ci.yml`](../../.github/workflows/ci.yml))
+chạy lại các bước này trước khi merge.
 
 ## Chạy thử
 
@@ -43,7 +42,7 @@ flutter run --dart-define=API_BASE_URL=http://<IP-LAN>:3000/v1
 | M06 | Hướng dẫn sơ cấp cứu | `screens/guidance_screen.dart` |
 | M07 | Bản đồ và điểm hỗ trợ | `screens/map_screen.dart` |
 | M08 | Hồ sơ sức khỏe + người liên hệ | `screens/profile_screen.dart`, `screens/contacts_screen.dart` |
-| M09 | Chế độ offline | Trong `guidance_screen.dart` + `_FailureFallback` ở `home_screen.dart` |
+| M09 | Chế độ offline + video đóng gói sẵn | `guidance_screen.dart`, `offline_video_player_screen.dart` + `_FailureFallback` |
 | M10 | Lịch sử yêu cầu | `screens/history_screen.dart` |
 
 ## Kiến trúc
@@ -57,6 +56,7 @@ lib/
 │   ├── offline_cache.dart       Dữ liệu KHÔNG nhạy cảm → shared_preferences
 │   ├── location_service.dart    GPS best-effort; thiếu GPS vẫn tạo được ca
 │   ├── emergency_dialer.dart    Gọi thẳng số cấp cứu — phương án cuối cùng
+│   ├── offline video assets     4 MP4 + transcript, mở trước đăng nhập
 │   ├── video/                   Port + driver mock/livekit (Rule 8.1)
 │   └── map/                     Port + driver OpenStreetMap
 ├── models/                      CasePhase (6 pha), hướng dẫn, hồ sơ
@@ -81,6 +81,10 @@ Driver video do **backend quyết định** qua trường `provider` trong respo
 nhà cung cấp không cần phát hành bản app mới.
 
 ## Quyết định thiết kế đáng lưu ý
+
+**Video sơ cứu không phụ thuộc mạng hay đăng nhập.** Bốn MP4 demo nằm trong
+Flutter assets; PWA precache chúng khi cài. Video luôn có transcript và cờ
+`drillOnly`. Xem [`docs/mobile/offline-first-aid-videos.md`](../../docs/mobile/offline-first-aid-videos.md).
 
 **App chỉ biết 6 pha, không biết 12 trạng thái.** `CasePhase` là 6 pha hiển thị
 của Rule 7.1; 12 trạng thái kỹ thuật chỉ tồn tại ở backend và dashboard

@@ -22,7 +22,7 @@ Nguyên mẫu MVP/Pilot xây theo **Developer Kit v1.0** và bộ **Coding Rules
 | Crew/Responder PWA | – | ❌ Chưa làm; API `/assignments/*` đã sẵn sàng |
 | PostgreSQL + PostGIS | Migration + seed | ⚠️ SQL hoàn chỉnh, **chưa chạy thật trên máy này** (không có Docker); CI đã có job chạy trên Postgres thật |
 
-**Kiểm thử:** 70 unit + 37 acceptance (backend) và 28 test (mobile) — tất cả xanh.
+**Kiểm thử:** 70 unit + 37 acceptance (backend) và 32 test (mobile) — tất cả xanh.
 Acceptance test backend chạy trên driver `memory`; CI chạy lại chúng trên
 PostgreSQL thật, vì một tính năng chỉ Done khi pass ở đó (Rule 15).
 
@@ -101,7 +101,7 @@ npm test              # 70 unit test
 npm run test:e2e      # 37 acceptance test, map theo TC-xxx trong tests/test_cases.csv
 
 cd ../mobile
-flutter test          # 28 test cho model, adapter video, vòng đời cuộc gọi
+flutter test          # 32 test cho model, điều hướng, video offline và cuộc gọi
 ```
 
 ## Cấu trúc

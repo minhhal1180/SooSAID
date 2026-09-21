@@ -48,7 +48,9 @@ class HomeScreen extends StatelessWidget {
                   message: state.lastFailureMessage,
                 ),
 
-              Expanded(child: Center(child: _SosButton(state: state))),
+              Expanded(
+                child: Center(child: _SosButton(state: state)),
+              ),
 
               _LocationHint(state: state),
               const SizedBox(height: 16),
@@ -57,11 +59,12 @@ class HomeScreen extends StatelessWidget {
                 children: <Widget>[
                   Expanded(
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.menu_book_outlined),
-                      label: const Text('Hướng dẫn'),
+                      icon: const Icon(Icons.ondemand_video_outlined),
+                      label: const Text('Sơ cứu offline'),
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                            builder: (_) => const GuidanceScreen()),
+                          builder: (_) => const GuidanceScreen(),
+                        ),
                       ),
                     ),
                   ),
@@ -77,6 +80,22 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Icon(
+                    Icons.download_done,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '4 video cơ bản đã lưu trên thiết bị',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
               // Đường ra số cấp cứu thật, luôn có mặt và không phụ thuộc mạng
               // hay backend (TDD §12, runbook SEV-1).
               TextButton.icon(
@@ -186,7 +205,8 @@ class _LocationHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final outcome = state.lastLocationOutcome;
-    final needsManualInput = outcome == LocationOutcome.permissionDenied ||
+    final needsManualInput =
+        outcome == LocationOutcome.permissionDenied ||
         outcome == LocationOutcome.serviceDisabled ||
         outcome == LocationOutcome.unavailable;
 
@@ -209,7 +229,8 @@ class _LocationHint extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             const Text(
-                'Hãy mô tả nơi xảy ra sự cố để lực lượng y tế tìm được nhanh hơn.'),
+              'Hãy mô tả nơi xảy ra sự cố để lực lượng y tế tìm được nhanh hơn.',
+            ),
             const SizedBox(height: 10),
             TextField(
               decoration: const InputDecoration(
@@ -271,7 +292,9 @@ class _FailureFallback extends StatelessWidget {
           Text(
             headline,
             style: TextStyle(
-                fontWeight: FontWeight.w700, color: scheme.onErrorContainer),
+              fontWeight: FontWeight.w700,
+              color: scheme.onErrorContainer,
+            ),
           ),
           const SizedBox(height: 4),
           Text(

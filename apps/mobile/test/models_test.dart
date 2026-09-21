@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sos_aid_mobile/models/emergency_case.dart';
 import 'package:sos_aid_mobile/models/guidance.dart';
+import 'package:sos_aid_mobile/models/offline_video_guide.dart';
 import 'package:sos_aid_mobile/models/profile.dart';
 
 /// Test cho tầng model: đây là nơi dữ liệu từ server biến thành đối tượng app
@@ -196,6 +197,33 @@ void main() {
       expect(contact.phoneMasked, '***567');
       // Model cố ý KHÔNG có trường số điện thoại đầy đủ.
       expect(contact.name, 'Nguyen Van A');
+    });
+  });
+
+  group('OfflineVideoGuide', () {
+    test('bộ video tối thiểu luôn được đóng gói và đánh dấu diễn tập', () {
+      expect(bundledOfflineVideoGuides, hasLength(4));
+      expect(
+        bundledOfflineVideoGuides.every(
+          (guide) =>
+              guide.assetPath.startsWith('assets/offline_videos/') &&
+              guide.drillOnly,
+        ),
+        isTrue,
+      );
+    });
+
+    test('mọi video có transcript và version để thay nội dung an toàn', () {
+      for (final guide in bundledOfflineVideoGuides) {
+        expect(guide.code, isNotEmpty);
+        expect(guide.version, greaterThan(0));
+        expect(guide.steps.length, greaterThanOrEqualTo(3));
+        expect(guide.duration, greaterThan(Duration.zero));
+      }
+    });
+
+    test('định dạng thời lượng dễ quét trên thẻ video', () {
+      expect(bundledOfflineVideoGuides.first.durationLabel, '0:12');
     });
   });
 }

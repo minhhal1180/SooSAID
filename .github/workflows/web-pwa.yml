@@ -101,6 +101,11 @@ jobs:
             --dart-define=API_BASE_URL="$API_BASE_URL" \
             --dart-define=EMERGENCY_PHONE="$EMERGENCY_PHONE"
 
+          # Flutter mặc định chỉ cache video sau lần mở đầu tiên. Bốn video sơ
+          # cứu phải có sẵn ngay khi PWA được cài, nên thêm chúng vào CORE của
+          # service worker sau build.
+          node tool/precache_offline_videos.mjs build/web/flutter_service_worker.js
+
           # GitHub Pages chạy Jekyll trừ khi có file này. Jekyll BỎ QUA mọi thư
           # mục bắt đầu bằng dấu gạch dưới — Flutter không sinh thư mục như vậy
           # hôm nay, nhưng chi phí phòng ngừa bằng không.
@@ -118,9 +123,19 @@ jobs:
             exit 1
           fi
           for f in main.dart.js manifest.json flutter_service_worker.js \
-                   icons/apple-touch-icon-180.png; do
+                   icons/apple-touch-icon-180.png \
+                   assets/assets/offline_videos/call_115.mp4 \
+                   assets/assets/offline_videos/scene_safety.mp4 \
+                   assets/assets/offline_videos/observe_signs.mp4 \
+                   assets/assets/offline_videos/wait_for_support.mp4; do
             if [ ! -f "$f" ]; then
               echo "Thieu file: $f"
+              exit 1
+            fi
+          done
+          for video in call_115 scene_safety observe_signs wait_for_support; do
+            if ! grep -q "assets/assets/offline_videos/$video.mp4" flutter_service_worker.js; then
+              echo "Video chua nam trong precache: $video.mp4"
               exit 1
             fi
           done
